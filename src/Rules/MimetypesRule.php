@@ -10,12 +10,11 @@ use Vi\Validation\Execution\ValidationContext;
 final class MimetypesRule implements RuleInterface
 {
     /** @var list<string> */
-    /** @var array<int|string, string> */
     private array $types;
 
     public function __construct(string ...$types)
     {
-        $this->types = $types;
+        $this->types = array_values($types);
     }
 
     public function validate(mixed $value, string $field, ValidationContext $context): ?array
@@ -35,7 +34,7 @@ final class MimetypesRule implements RuleInterface
         if ($finfo === false) {
             return null;
         }
-        $mimeType = finfo_file($finfo, $value['tmp_name']);
+        $mimeType = finfo_file($finfo, $path);
         finfo_close($finfo);
 
         if (!in_array($mimeType, $this->types, true)) {

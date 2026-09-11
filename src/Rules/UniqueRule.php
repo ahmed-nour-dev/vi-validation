@@ -13,7 +13,6 @@ final class UniqueRule implements RuleInterface
     private string $column;
     private mixed $ignoreId;
     private string $idColumn;
-    /** @phpstan-ignore-next-line */
     private ?string $connection;
     /** @var array<string, mixed> */
     private array $extraConstraints;
@@ -43,7 +42,7 @@ final class UniqueRule implements RuleInterface
             return null;
         }
 
-        if (!$dbValidator->unique($this->table, $this->column, $value, $this->ignoreId, $this->idColumn, $this->extraConstraints)) {
+        if (!$dbValidator->unique($this->table, $this->column, $value, $this->ignoreId, $this->idColumn, $this->extraConstraints, $this->connection)) {
             return ['rule' => 'unique'];
         }
 

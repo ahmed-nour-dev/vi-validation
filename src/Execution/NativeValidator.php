@@ -22,7 +22,7 @@ final class NativeValidator
     public function __construct(\Closure $closure, ?MessageResolver $messageResolver = null)
     {
         $this->closure = $closure;
-        $this->messageResolver = $messageResolver;
+        $this->messageResolver = $messageResolver ?? new MessageResolver();
     }
 
     /**

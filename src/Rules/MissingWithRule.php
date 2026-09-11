@@ -10,12 +10,11 @@ use Vi\Validation\Execution\ValidationContext;
 final class MissingWithRule implements RuleInterface
 {
     /** @var list<string> */
-    /** @var array<int|string, string> */
     private array $others;
 
     public function __construct(string ...$others)
     {
-        $this->others = $others;
+        $this->others = array_values($others);
     }
 
     public function validate(mixed $value, string $field, ValidationContext $context): ?array

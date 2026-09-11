@@ -17,9 +17,10 @@ interface DatabaseValidatorInterface
      * @param string $column
      * @param mixed $value
      * @param array<string, mixed> $extraConstraints
+     * @param string|null $connection
      * @return bool
      */
-    public function exists(string $table, string $column, mixed $value, array $extraConstraints = []): bool;
+    public function exists(string $table, string $column, mixed $value, array $extraConstraints = [], ?string $connection = null): bool;
 
     /**
      * Check if a value is unique in the database.
@@ -30,7 +31,8 @@ interface DatabaseValidatorInterface
      * @param mixed $ignoreId
      * @param string $idColumn
      * @param array<string, mixed> $extraConstraints
+     * @param string|null $connection
      * @return bool
      */
-    public function unique(string $table, string $column, mixed $value, mixed $ignoreId = null, string $idColumn = 'id', array $extraConstraints = []): bool;
+    public function unique(string $table, string $column, mixed $value, mixed $ignoreId = null, string $idColumn = 'id', array $extraConstraints = [], ?string $connection = null): bool;
 }

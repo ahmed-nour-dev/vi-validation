@@ -10,12 +10,11 @@ use Vi\Validation\Execution\ValidationContext;
 final class ExtensionsRule implements RuleInterface
 {
     /** @var list<string> */
-    /** @var array<int|string, string> */
     private array $extensions;
 
     public function __construct(string ...$extensions)
     {
-        $this->extensions = array_map('strtolower', $extensions);
+        $this->extensions = array_values(array_map('strtolower', $extensions));
     }
 
     public function validate(mixed $value, string $field, ValidationContext $context): ?array

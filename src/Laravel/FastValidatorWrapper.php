@@ -294,7 +294,7 @@ final class FastValidatorWrapper implements LaravelValidatorContract
      */
     public function setRules(array $rules): self
     {
-        $this->rules = array_merge($this->rules, $rules);
+        $this->rules = $rules;
         $this->result = null;
         return $this;
     }

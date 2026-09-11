@@ -11,7 +11,6 @@ final class ExistsRule implements RuleInterface
 {
     private string $table;
     private string $column;
-    /** @phpstan-ignore-next-line */
     private ?string $connection;
     /** @var array<string, mixed> */
     private array $extraConstraints;
@@ -41,7 +40,7 @@ final class ExistsRule implements RuleInterface
             return null; // Or throw an exception? Let's assume it fails silently if not configured
         }
 
-        if (!$dbValidator->exists($this->table, $this->column, $value, $this->extraConstraints)) {
+        if (!$dbValidator->exists($this->table, $this->column, $value, $this->extraConstraints, $this->connection)) {
             return ['rule' => 'exists'];
         }
 

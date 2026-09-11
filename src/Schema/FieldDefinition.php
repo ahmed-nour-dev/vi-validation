@@ -59,6 +59,14 @@ final class FieldDefinition
         return $this->builder->compile();
     }
 
+    public function end(): SchemaBuilder
+    {
+        if ($this->builder === null) {
+            throw new \RuntimeException('FieldDefinition has no SchemaBuilder reference.');
+        }
+        return $this->builder;
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -141,27 +149,62 @@ final class FieldDefinition
         return $this;
     }
 
-    public function min(int $min): self
+    public function min(int|float $min): self
     {
         $this->rules[] = new \Vi\Validation\Rules\MinRule($min);
         return $this;
     }
 
-    public function max(int $max): self
+    public function max(int|float $max): self
     {
         $this->rules[] = new \Vi\Validation\Rules\MaxRule($max);
         return $this;
     }
 
-    public function size(int $size): self
+    public function size(int|float $size): self
     {
         $this->rules[] = new \Vi\Validation\Rules\SizeRule($size);
         return $this;
     }
 
-    public function between(int $min, int $max): self
+    public function between(int|float $min, int|float $max): self
     {
         $this->rules[] = new \Vi\Validation\Rules\BetweenRule($min, $max);
+        return $this;
+    }
+
+    public function decimal(int $min, ?int $max = null): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DecimalRule($min, $max);
+        return $this;
+    }
+
+    public function bool(): self
+    {
+        return $this->boolean();
+    }
+
+    public function list(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ListRule();
+        return $this;
+    }
+
+    public function sometimes(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\SometimesRule();
+        return $this;
+    }
+
+    public function same(string $field): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\SameRule($field);
+        return $this;
+    }
+
+    public function different(string $field): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DifferentRule($field);
         return $this;
     }
 
@@ -238,6 +281,24 @@ final class FieldDefinition
         return $this;
     }
 
+    public function extensions(string ...$extensions): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExtensionsRule(...$extensions);
+        return $this;
+    }
+
+    public function maxFileSize(int $kb): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MaxFileSizeRule($kb);
+        return $this;
+    }
+
+    public function minFileSize(int $kb): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MinFileSizeRule($kb);
+        return $this;
+    }
+
     public function file(): self
     {
         $this->rules[] = new \Vi\Validation\Rules\FileRule();
@@ -274,6 +335,24 @@ final class FieldDefinition
         return $this;
     }
 
+    public function country(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\CountryRule();
+        return $this;
+    }
+
+    public function language(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\LanguageRule();
+        return $this;
+    }
+
+    public function ascii(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\AsciiRule();
+        return $this;
+    }
+
     public function date(): self
     {
         $this->rules[] = new \Vi\Validation\Rules\DateRule();
@@ -283,6 +362,12 @@ final class FieldDefinition
     public function dateFormat(string $format): self
     {
         $this->rules[] = new \Vi\Validation\Rules\DateFormatRule($format);
+        return $this;
+    }
+
+    public function dateEquals(string $date): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DateEqualsRule($date);
         return $this;
     }
 
@@ -334,6 +419,30 @@ final class FieldDefinition
         return $this;
     }
 
+    public function doesntStartWith(string ...$needles): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DoesntStartWithRule(...$needles);
+        return $this;
+    }
+
+    public function doesntEndWith(string ...$needles): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DoesntEndWithRule(...$needles);
+        return $this;
+    }
+
+    public function digitsBetween(int $min, int $max): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\DigitsBetweenRule($min, $max);
+        return $this;
+    }
+
+    public function requiredArrayKeys(string ...$keys): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\RequiredArrayKeysRule(...$keys);
+        return $this;
+    }
+
     public function startsWith(string ...$values): self
     {
         /** @var array<int, string> $castedValues */
@@ -365,11 +474,20 @@ final class FieldDefinition
         return $this;
     }
 
-    public function password(): PasswordRule
+    public function password(?callable $callback = null): PasswordRule
     {
         $rule = new PasswordRule();
+        if ($callback !== null) {
+            $callback($rule);
+        }
         $this->rules[] = $rule;
         return $rule;
+    }
+
+    public function currentPassword(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\CurrentPasswordRule();
+        return $this;
     }
 
     /**
@@ -475,6 +593,74 @@ final class FieldDefinition
         /** @var array<int, string> $othersList */
         $othersList = array_values($others);
         $this->rules[] = new ProhibitsRule(...$othersList);
+        return $this;
+    }
+
+    /**
+     * Alias for prohibitedWith().
+     */
+    public function prohibits(string ...$fields): self
+    {
+        return $this->prohibitedWith(...$fields);
+    }
+
+    public function missing(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MissingRule();
+        return $this;
+    }
+
+    public function missingIf(string $otherField, mixed $value): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MissingIfRule($otherField, $value);
+        return $this;
+    }
+
+    public function missingUnless(string $otherField, mixed $value): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MissingUnlessRule($otherField, $value);
+        return $this;
+    }
+
+    public function missingWith(string ...$others): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MissingWithRule(...$others);
+        return $this;
+    }
+
+    public function missingWithAll(string ...$others): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\MissingWithAllRule(...$others);
+        return $this;
+    }
+
+    public function exclude(): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExcludeRule();
+        return $this;
+    }
+
+    public function excludeIf(string $otherField, mixed $value): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExcludeIfRule($otherField, $value);
+        return $this;
+    }
+
+    public function excludeUnless(string $otherField, mixed $value): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExcludeUnlessRule($otherField, $value);
+        return $this;
+    }
+
+    public function excludeWith(string $otherField): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExcludeWithRule($otherField);
+        return $this;
+    }
+
+    public function excludeWithout(string $otherField): self
+    {
+        $this->rules[] = new \Vi\Validation\Rules\ExcludeWithoutRule($otherField);
         return $this;
     }
 
