@@ -34,6 +34,25 @@ Stop trading performance for convenience. **vi/validation** delivers **17x to 34
 
 ---
 
+## 📚 Table of Contents
+
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Key Features & Documentation](#-key-features--documentation)
+  - [Streaming & Large Datasets](#-streaming--large-datasets)
+  - [Chunked & Batch Validation](#-chunked--batch-validation)
+  - [Working with Validation Results](#-working-with-validation-results)
+  - [Custom Validation Rules (Closures)](#-custom-validation-rules-closures)
+  - [Conditional Field Rules](#-conditional-field-rules)
+  - [Supported Rules](#-supported-rules)
+  - [Localization & Custom Messages](#-localization--custom-messages)
+  - [Long-Running Processes (Octane, Swoole, RoadRunner)](#-long-running-processes-octane-swoole-roadrunner)
+- [Configuration](#-configuration)
+- [Testing](#-testing)
+- [License](#-license)
+
+---
+
 ## 📦 Installation
 
 ```bash
@@ -54,8 +73,8 @@ use Vi\Validation\SchemaValidator;
 
 // 1. Define & Compile Schema
 $schema = Validator::schema()
-    ->field('email')->required()->email()->end()
-    ->field('age')->required()->integer()->min(18)->end()
+    ->field('email')->required()->email()
+    ->field('age')->required()->integer()->min(18)
     ->compile();
 
 // 2. Create Validator
@@ -144,7 +163,7 @@ Validating 100,000 rows? Don't crash your server. Use `stream()` to process reco
 
 ```php
 $schema = Validator::schema()
-    ->field('id')->required()->integer()->end()
+    ->field('id')->required()->integer()
     ->compile();
 
 $validator = new SchemaValidator($schema);
@@ -156,6 +175,125 @@ foreach ($validator->stream($largeDataset) as $result) {
     }
 }
 ```
+
+`SchemaValidator` also exposes a few other memory-conscious helpers built on top of `stream()`:
+
+```php
+// Run a callback per row without ever storing results
+$validator->each($rows, function ($result, int $index) {
+    if (!$result->isValid()) {
+        Log::error("Row {$index} failed", $result->errors());
+    }
+});
+
+// Yield only the rows that failed
+foreach ($validator->failures($rows) as $index => $result) {
+    // ...
+}
+
+// Stop at the very first failure (fail-fast)
+$firstFailure = $validator->firstFailure($rows);
+
+// Cheap boolean check over an entire dataset
+$allGood = $validator->allValid($rows);
+```
+
+> ⚠️ `validateMany()` materializes every result in memory — reach for it only on small datasets. Prefer `stream()`, `each()`, or `failures()` for anything with more than a few thousand rows.
+
+### 📦 Chunked & Batch Validation
+
+For ETL jobs and imports, `ChunkedValidator` processes rows in fixed-size batches so you can, for example, bulk-insert valid rows into a database chunk-by-chunk:
+
+```php
+use Vi\Validation\Execution\ChunkedValidator;
+
+$chunked = new ChunkedValidator($validator);
+
+// Run a callback for every chunk of results
+$chunked->validateInChunks($rows, chunkSize: 500, onChunk: function (int $chunkIndex, array $results) {
+    // $results is a list<ValidationResult> for this chunk
+});
+
+// Or stream BatchValidationResult objects (Countable + IteratorAggregate)
+foreach ($chunked->streamChunks($rows, chunkSize: 500) as $chunkIndex => $batch) {
+    echo "Chunk {$chunkIndex}: {$batch->failureCount()} failed of {$batch->count()}\n";
+
+    foreach ($batch->failures() as $result) {
+        // handle each failed row
+    }
+}
+
+// Yield only failing rows (with their original index) across the whole dataset
+foreach ($chunked->streamFailures($rows, chunkSize: 1000) as $index => $result) {
+    // ...
+}
+
+// Count failures without keeping any results in memory
+$totalFailures = $chunked->countFailures($rows, chunkSize: 1000);
+```
+
+### ✅ Working with Validation Results
+
+Every validation call returns a `ValidationResult` with a small, focused API:
+
+| Method | Description |
+| :--- | :--- |
+| `isValid(): bool` | Whether the data passed all rules. |
+| `data(): array` | The raw input data that was validated. |
+| `validated(): array` | The input data minus any fields excluded via `exclude*` rules. |
+| `errors(): array` | Raw, per-field error entries (`rule`, `params`, `message`). |
+| `messages(): array` | Formatted, human-readable messages grouped by field. |
+| `allMessages(): array` | A flat list of every message across all fields. |
+| `firstMessage(string $field): ?string` | The first message for a specific field. |
+| `first(): ?string` | The first message across the whole result. |
+
+```php
+$result = $validator->validate($data);
+
+if ($result->isValid()) {
+    $safeData = $result->validated();
+} else {
+    return response()->json(['errors' => $result->messages()], 422);
+}
+
+echo $result; // "Validation passed." or a newline-joined list of messages
+```
+
+### 🎯 Custom Validation Rules (Closures)
+
+Drop in one-off rules using a Laravel-style closure — no need to write a dedicated rule class:
+
+```php
+use Vi\Validation\Rules\ClosureRule;
+
+$schema = Validator::schema()
+    ->field('username')
+        ->required()
+        ->rules(new ClosureRule(function (string $attribute, mixed $value, \Closure $fail) {
+            if (str_contains((string) $value, ' ')) {
+                $fail("The {$attribute} must not contain spaces.");
+            }
+        }))
+    ->compile();
+```
+
+### 🔀 Conditional Field Rules
+
+Use `when()` to layer extra rules onto a field depending on another field's value — either a static boolean (evaluated immediately) or a callable (evaluated per-row at validation time):
+
+```php
+$schema = Validator::schema()
+    ->field('country')->required()->string()
+    ->field('postal_code')
+        ->required()->string()
+        ->when(
+            fn (array $data) => ($data['country'] ?? null) === 'US',
+            onTrue: fn ($field) => $field->regex('/^\d{5}(-\d{4})?$/'),
+        )
+    ->compile();
+```
+
+> Note: rules added inside `when()` are skipped when the field's own value is empty/null (like most non-`required*` rules), so `when()` is for layering extra constraints onto a field that already has a base rule such as `required()` — it's not a way to make a field conditionally required. For that, use [`requiredIf()` / `requiredUnless()`](#-supported-rules) instead.
 
 ### 🛠 Supported Rules
 
@@ -177,36 +315,111 @@ We support a comprehensive set of almost all standard Laravel rules.
 | **Auth** | `password`, `current_password` |
 | **Others** | `country`, `language` |
 
-### 🌐 Localization
+### 🌐 Localization & Custom Messages
 
-Fully localized error messages. English and Arabic are built-in.
+Fully localized error messages. English and Arabic are built-in (`resources/lang/{en,ar}/validation.php`), including type-aware variants (e.g. `min.string` vs `min.numeric`).
 
 ```php
 use Vi\Validation\Messages\Translator;
 
 $translator = new Translator('ar'); // Switch to Arabic
+
+// Point to your own lang directory to add locales or override messages
+$translator = new Translator('fr', __DIR__ . '/resources/lang');
+
+// Add/override messages at runtime
+$translator->addMessages(['required' => 'Le champ :attribute est requis.'], 'fr');
+```
+
+To override messages per-field/per-rule and customize attribute names, wrap the translator in a `MessageResolver` and pass it into `SchemaValidator`:
+
+```php
+use Vi\Validation\SchemaValidator;
+use Vi\Validation\Execution\ValidatorEngine;
+use Vi\Validation\Messages\MessageResolver;
+use Vi\Validation\Messages\Translator;
+
+$resolver = new MessageResolver(new Translator('en'));
+
+$resolver->setCustomMessages([
+    'email.required' => 'Please provide your email address.', // field.rule
+    'unique' => 'This value has already been taken.',          // rule-wide
+]);
+
+$resolver->setCustomAttributes([
+    'email' => 'email address',
+]);
+
+// The resolver must be given to the engine (used during validation) as well
+// as to SchemaValidator (used for the precompiled/native validator path).
+$validator = new SchemaValidator($schema, new ValidatorEngine($resolver), messageResolver: $resolver);
+```
+
+In Laravel, `FastValidator::make()` accepts the same `$messages` and `$customAttributes` arguments as `Validator::make()`.
+
+### ⚡ Long-Running Processes (Octane, Swoole, RoadRunner)
+
+For worker-based runtimes where the process stays alive across requests, `vi/validation` avoids re-creating validators on every request:
+
+- **`Vi\Validation\Runtime\ValidatorPool`** — a pool of reusable `StatelessValidator` instances. Enable it with `runtime.pooling` in the config (see below); `OctaneValidatorProvider` wires it into Octane's `WorkerStarting`/`WorkerStopping`/`RequestReceived`/`RequestTerminated` events automatically.
+- **`Vi\Validation\Runtime\Workers\SwooleAdapter`** and **`RoadRunnerAdapter`** — thin adapters for wiring the same lifecycle hooks into Swoole and RoadRunner workers directly.
+
+```php
+use Vi\Validation\Runtime\ValidatorPool;
+
+$pool = new ValidatorPool(maxSize: 10);
+$pool->onWorkerStart(); // pre-warm on worker boot
+
+// Automatic acquire/release around a unit of work
+$result = $pool->withValidator(function ($validator) use ($schema, $data) {
+    return $validator->validate($schema, $data); // StatelessValidator::validate(CompiledSchema, array)
+});
+
+$pool->onWorkerStop(); // drain on worker shutdown
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Publish the config file to tweak performance settings:
+Publish the config file in a Laravel app:
+
+```bash
+php artisan vendor:publish --tag=config --provider="Vi\Validation\Laravel\FastValidationServiceProvider"
+```
+
+This creates `config/fast-validation.php` with the following options (each overridable via an environment variable):
+
+| Key | Env Variable | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `mode` | — | `parallel` | `parallel` (opt-in `FastValidator` facade) or `override` (route `Validator::make()` through the fast engine). |
+| `cache.enabled` | `FAST_VALIDATION_CACHE` | `true` | Cache compiled schemas to avoid recompiling on every request. |
+| `cache.driver` | `FAST_VALIDATION_CACHE_DRIVER` | `array` | `array` (per-request) or `file` (persisted across requests/workers). |
+| `cache.ttl` | `FAST_VALIDATION_CACHE_TTL` | `3600` | Cache lifetime in seconds. |
+| `cache.path` | — | `storage/framework/validation/cache` | Storage path used by the `file` cache driver. |
+| `compilation.precompile` | `FAST_VALIDATION_PRECOMPILE` | `false` | Generate and persist native PHP validator closures ahead of time for maximum throughput in production. |
+| `compilation.cache_path` | — | `storage/framework/validation/compiled` | Where precompiled native validators are stored. |
+| `performance.fail_fast` | `FAST_VALIDATION_FAIL_FAST` | `false` | Stop validating a field after its first error. |
+| `performance.max_errors` | `FAST_VALIDATION_MAX_ERRORS` | `100` | Stop collecting errors after this many, to bound worst-case cost on malformed input. |
+| `performance.fast_path_rules` | `FAST_VALIDATION_FAST_PATH` | `true` | Enable optimized code paths for common rule combinations. |
+| `localization.locale` | `FAST_VALIDATION_LOCALE` | `en` | Default locale for error messages. |
+| `localization.fallback_locale` | `FAST_VALIDATION_FALLBACK_LOCALE` | `en` | Locale used when a message is missing in the active locale. |
+| `runtime.pooling` | `FAST_VALIDATION_POOLING` | `false` | Enable `ValidatorPool` instance reuse for Octane/Swoole/RoadRunner. |
+| `runtime.pool_size` | `FAST_VALIDATION_POOL_SIZE` | `10` | Maximum number of pooled validator instances. |
+| `runtime.auto_detect` | `FAST_VALIDATION_AUTO_DETECT` | `true` | Auto-detect long-running environments and tune behavior accordingly. |
+
+Outside Laravel, pass the same shape directly to `SchemaValidator::build()`:
 
 ```php
-// config/fast-validation.php
-return [
-    'mode' => 'parallel', // 'parallel' or 'override'
-    
-    'performance' => [
-        'fail_fast' => false, // Stop at first error per field
-        'max_errors' => 100,  // Stop validation after N errors
+$validator = \Vi\Validation\SchemaValidator::build(
+    definition: fn ($schema) => $schema->field('email')->required()->email(),
+    config: [
+        'compilation' => [
+            'precompile' => true,
+            'cache_path' => __DIR__ . '/storage/compiled',
+        ],
     ],
-    
-    'compilation' => [
-        'precompile' => true, // Save compiled schemas to disk
-    ],
-];
+);
 ```
 
 ---
