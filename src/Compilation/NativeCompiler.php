@@ -13,16 +13,94 @@ use RuntimeException;
 /**
  * NativeCompiler generates highly optimized PHP code for validation schemas.
  * It inlines common rules to minimize method calls and object allocations.
+ *
+ * Compatibility contract: a native validator must never change validation
+ * semantics compared to ValidatorEngine. If a schema contains any rule that
+ * cannot be inlined, compile() throws UnsupportedNativeRuleException instead
+ * of silently omitting the rule. Callers must catch it (or check
+ * canCompile() up front) and fall back to ValidatorEngine for that schema.
  */
 final class NativeCompiler
 {
-    public const COMPILER_VERSION = '1.0.0';
+    public const COMPILER_VERSION = '2.0.0';
+
+    /**
+     * Check whether every rule in the schema can be natively inlined.
+     *
+     * Use this to decide, ahead of time, whether it is safe to call
+     * compile() for a given schema.
+     */
+    public function canCompile(CompiledSchema $schema): bool
+    {
+        return $this->findUnsupportedRules($schema) === [];
+    }
+
+    /**
+     * List the rules in the schema that cannot be natively inlined, as
+     * "field:RuleClass" strings. An empty list means the schema is fully
+     * native-compilable.
+     *
+     * @return list<string>
+     */
+    public function findUnsupportedRules(CompiledSchema $schema): array
+    {
+        $unsupported = [];
+
+        foreach ($schema->getFields() as $field) {
+            foreach ($field->getRules() as $rule) {
+                if (!$this->isSupported($rule)) {
+                    $unsupported[] = $field->getName() . ':' . get_class($rule);
+                }
+            }
+        }
+
+        return $unsupported;
+    }
+
+    /**
+     * Whether a single rule instance can be natively inlined.
+     */
+    public function isSupported(RuleInterface $rule): bool
+    {
+        return match (get_class($rule)) {
+            \Vi\Validation\Rules\RequiredRule::class,
+            \Vi\Validation\Rules\StringTypeRule::class,
+            \Vi\Validation\Rules\IntegerTypeRule::class,
+            \Vi\Validation\Rules\NumericRule::class,
+            \Vi\Validation\Rules\BooleanRule::class,
+            \Vi\Validation\Rules\ArrayRule::class,
+            \Vi\Validation\Rules\EmailRule::class,
+            \Vi\Validation\Rules\UrlRule::class,
+            \Vi\Validation\Rules\IpRule::class,
+            \Vi\Validation\Rules\JsonRule::class,
+            \Vi\Validation\Rules\MinRule::class,
+            \Vi\Validation\Rules\MaxRule::class,
+            \Vi\Validation\Rules\AlphaRule::class,
+            \Vi\Validation\Rules\AlphanumericRule::class,
+            \Vi\Validation\Rules\AlphaDashRule::class => true,
+            default => false,
+        };
+    }
 
     /**
      * Compile a schema into optimized PHP code.
+     *
+     * @throws UnsupportedNativeRuleException if the schema contains a rule
+     *         that cannot be natively inlined. Callers must fall back to
+     *         ValidatorEngine in that case rather than using a partial
+     *         native validator.
      */
     public function compile(CompiledSchema $schema): string
     {
+        $unsupported = $this->findUnsupportedRules($schema);
+        if ($unsupported !== []) {
+            throw new UnsupportedNativeRuleException(
+                'Cannot natively compile schema: unsupported rule(s) found: '
+                . implode(', ', $unsupported)
+                . '. This schema must be validated with ValidatorEngine instead.'
+            );
+        }
+
         $code = "<?php\n\n";
         $code .= "declare(strict_types=1);\n\n";
         $code .= "/**\n";
@@ -96,12 +174,15 @@ final class NativeCompiler
 
         foreach ($rules as $rule) {
             $inlined = $this->inlineRule($rule, $name, $varName, $indent);
-            if ($inlined) {
-                $code .= $inlined;
-            } else {
-                $code .= "{$indent}// Warning: Rule " . get_class($rule) . " not inlined. Skipping.\n";
+            if ($inlined === null) {
+                // canCompile()/findUnsupportedRules() should have caught this
+                // before compile() ever reached code generation.
+                throw new UnsupportedNativeRuleException(
+                    'Cannot natively compile rule ' . get_class($rule) . " on field '{$name}'."
+                );
             }
-            
+            $code .= $inlined;
+
             if ($field->isBail()) {
                 $code .= "{$indent}if (isset(\$errors['" . addslashes($name) . "'])) { goto bail_{$safeName}; }\n";
             }
@@ -134,7 +215,11 @@ final class NativeCompiler
     private function inlineRule(RuleInterface $rule, string $fieldName, string $valName, string $indent): ?string
     {
         $class = get_class($rule);
-        
+
+        if (!$this->isSupported($rule)) {
+            return null;
+        }
+
         // Non-implicit rules should skip if the value is "empty"
         // Implicit rules (Required, Accepted, etc.) handle empty values themselves.
         $isImplicit = $this->isImplicitRule($class);
@@ -164,12 +249,13 @@ final class NativeCompiler
             \Vi\Validation\Rules\AlphaRule::class => $this->inlineRegex($fieldName, $valName, 'alpha', '/^\pL+$/u', $indent),
             \Vi\Validation\Rules\AlphanumericRule::class => $this->inlineRegex($fieldName, $valName, 'alpha_num', '/^[\pL\pN]+$/u', $indent),
             \Vi\Validation\Rules\AlphaDashRule::class => $this->inlineRegex($fieldName, $valName, 'alpha_dash', '/^[\pL\pM\pN_-]+$/u', $indent),
-            default => null,
+            // Unreachable: isSupported() already filtered to the classes above.
+            // Kept as a loud failure rather than a silent skip in case the two
+            // lists ever drift apart.
+            default => throw new UnsupportedNativeRuleException(
+                "Rule {$class} is marked supported but has no inliner implementation."
+            ),
         };
-
-        if ($code === null) {
-            return null;
-        }
 
         return $prefix . $code . $suffix;
     }

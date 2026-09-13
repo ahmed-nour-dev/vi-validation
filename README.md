@@ -408,6 +408,21 @@ This creates `config/fast-validation.php` with the following options (each overr
 | `runtime.pool_size` | `FAST_VALIDATION_POOL_SIZE` | `10` | Maximum number of pooled validator instances. |
 | `runtime.auto_detect` | `FAST_VALIDATION_AUTO_DETECT` | `true` | Auto-detect long-running environments and tune behavior accordingly. |
 
+#### Native compilation compatibility contract
+
+When `compilation.precompile` (or a `cache_path` passed to `ValidatorCompiler`) is enabled, `NativeCompiler` tries to turn a schema into a single inlined PHP closure for maximum throughput. **A native validator must never change validation semantics compared to the standard `ValidatorEngine`.**
+
+Only a fixed set of rules can currently be inlined: `required`, `string`, `integer`, `numeric`, `boolean`, `array`, `email`, `url`, `ip`, `json`, `min`, `max`, `alpha`, `alpha_num`, and `alpha_dash`. If a schema contains any other rule (e.g. `in`, `regex`, `unique`, `distinct`, database rules, closures, ...), `NativeCompiler::compile()` throws `UnsupportedNativeRuleException` instead of silently dropping the rule. `ValidatorCompiler::writeNative()` catches this and simply does not write a native artifact for that schema — `SchemaValidator::validate()` then finds no cached native file and transparently falls back to `ValidatorEngine`, so the exact same schema always produces the exact same result whether or not it happened to be native-compilable.
+
+You can check ahead of time whether a schema is fully native-compilable:
+
+```php
+$compiler = new \Vi\Validation\Compilation\NativeCompiler();
+
+$compiler->canCompile($schema);          // bool
+$compiler->findUnsupportedRules($schema); // e.g. ['status:Vi\Validation\Rules\InRule']
+```
+
 Outside Laravel, pass the same shape directly to `SchemaValidator::build()`:
 
 ```php

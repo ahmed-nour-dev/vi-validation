@@ -75,6 +75,11 @@ final class ValidatorCompiler
 
     /**
      * Write optimized native PHP code to file.
+     *
+     * If the schema contains a rule that NativeCompiler cannot inline, no
+     * file is written. SchemaValidator::validate() then finds no native
+     * artifact for this key and falls back to ValidatorEngine, so a schema
+     * can never be partially/incorrectly natively compiled.
      */
     public function writeNative(string $key, CompiledSchema $schema): void
     {
@@ -88,14 +93,20 @@ final class ValidatorCompiler
         }
 
         $path = $dir . '/' . $key . '.php';
-        
+
         // Only write if it doesn't exist (content-hash based)
         if (file_exists($path)) {
             return;
         }
 
-        $code = $this->nativeCompiler->compile($schema);
-        
+        try {
+            $code = $this->nativeCompiler->compile($schema);
+        } catch (\Vi\Validation\Compilation\UnsupportedNativeRuleException) {
+            // Refuse native compilation for this schema; ValidatorEngine
+            // remains the deterministic fallback for correctness.
+            return;
+        }
+
         // Atomic write: temp file + rename
         $tmp = $path . '.' . uniqid('', true) . '.tmp';
         file_put_contents($tmp, $code, LOCK_EX);
