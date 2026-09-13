@@ -16,3 +16,7 @@ log.txt
 !/storage/app/downloads
 .idea
 .rnd
+
+# Per-run benchmark history (tests/run-benchmarks.php); benchmark-results/latest.json is the
+# intentionally-committed, traceable snapshot the README performance numbers cite.
+/benchmark-results/run-*.json

@@ -1,0 +1,868 @@
+{
+    "generated_at": "2026-09-13T12:34:27+00:00",
+    "environment": {
+        "php_version": "8.5.9",
+        "sapi": "cli",
+        "os": "Linux ITG-Dev-1 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64",
+        "cpu": "Intel(R) Core(TM) i7-10870H CPU @ 2.20GHz",
+        "cpu_cores": 16,
+        "memory_limit": "-1",
+        "opcache_enabled_cli": true,
+        "opcache_jit": "disable",
+        "opcache_jit_buffer_size": "64M",
+        "illuminate_validation_version": "v11.47.0",
+        "git_commit": "95513ab"
+    },
+    "trials": 3,
+    "warmup": 1,
+    "scenarios": {
+        "simple": {
+            "1000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.179665949,
+                        "max": 0.187204579,
+                        "mean": 0.182230184,
+                        "median": 0.179820024,
+                        "stddev": 0.0035179908080631367,
+                        "samples": 3
+                    },
+                    "rows_per_second": 5561.115930003435,
+                    "failures": 100,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2635064,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.003842389,
+                        "max": 0.003930014,
+                        "mean": 0.0038806726666666667,
+                        "median": 0.003869615,
+                        "stddev": 3.661729236606965e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 258423.64162843075,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002584438,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 1735688,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.00546503,
+                        "max": 0.005624008,
+                        "mean": 0.005566842666666666,
+                        "median": 0.00561149,
+                        "stddev": 7.217358427815227e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 178205.7884804214,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002181985,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 1735696,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.001785478,
+                        "max": 0.001954784,
+                        "mean": 0.0018475816666666666,
+                        "median": 0.001802483,
+                        "stddev": 7.612072740208305e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 554790.2532229153,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002062856,
+                    "native_gen_time_seconds": 0.000458783,
+                    "native_write_time_seconds": 0.003925529,
+                    "cold_time_seconds": 0.001977108,
+                    "peak_memory_bytes": 1735784,
+                    "peak_memory_real_bytes": 4194304
+                }
+            },
+            "10000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 1.747521005,
+                        "max": 1.847052847,
+                        "mean": 1.8091376913333335,
+                        "median": 1.832839222,
+                        "stddev": 0.04395428541818909,
+                        "samples": 3
+                    },
+                    "rows_per_second": 5456.015934167956,
+                    "failures": 1000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 6977624,
+                    "peak_memory_real_bytes": 8388608
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.033938044,
+                        "max": 0.034438336,
+                        "mean": 0.03427007333333333,
+                        "median": 0.03443384,
+                        "stddev": 0.00023478736784494062,
+                        "samples": 3
+                    },
+                    "rows_per_second": 290411.99006558664,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002135177,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 6078248,
+                    "peak_memory_real_bytes": 8388608
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.056680434,
+                        "max": 0.058380719,
+                        "mean": 0.05753715933333333,
+                        "median": 0.057550325,
+                        "stddev": 0.0006942008697729738,
+                        "samples": 3
+                    },
+                    "rows_per_second": 173760.9648598857,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002115589,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 6078256,
+                    "peak_memory_real_bytes": 8388608
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.018545678,
+                        "max": 0.018962053,
+                        "mean": 0.01882187,
+                        "median": 0.018957879,
+                        "stddev": 0.00019530467005339825,
+                        "samples": 3
+                    },
+                    "rows_per_second": 527485.1685676441,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002179383,
+                    "native_gen_time_seconds": 0.00042954,
+                    "native_write_time_seconds": 0.000663416,
+                    "cold_time_seconds": 0.000979175,
+                    "peak_memory_bytes": 6078344,
+                    "peak_memory_real_bytes": 8388608
+                }
+            },
+            "100000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 17.580374596,
+                        "max": 18.356763024,
+                        "mean": 18.089723577666664,
+                        "median": 18.332033113,
+                        "stddev": 0.3603055934140449,
+                        "samples": 3
+                    },
+                    "rows_per_second": 5454.932324395916,
+                    "failures": 10000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 50197864,
+                    "peak_memory_real_bytes": 52432896
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.366487246,
+                        "max": 0.370087467,
+                        "mean": 0.3687272126666667,
+                        "median": 0.369606925,
+                        "stddev": 0.0015959987790877413,
+                        "samples": 3
+                    },
+                    "rows_per_second": 270557.7012660139,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.00211293,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 49390480,
+                    "peak_memory_real_bytes": 52432896
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.56702146,
+                        "max": 0.580688288,
+                        "mean": 0.5722637970000001,
+                        "median": 0.569081643,
+                        "stddev": 0.006016096461725752,
+                        "samples": 3
+                    },
+                    "rows_per_second": 175721.71098831246,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.002217099,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 49454976,
+                    "peak_memory_real_bytes": 52432896
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.191695554,
+                        "max": 0.210438485,
+                        "mean": 0.199290471,
+                        "median": 0.195737374,
+                        "stddev": 0.008053684015664185,
+                        "samples": 3
+                    },
+                    "rows_per_second": 510888.6359127307,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.002482855,
+                    "native_gen_time_seconds": 0.000468836,
+                    "native_write_time_seconds": 0.000775747,
+                    "cold_time_seconds": 0.000976918,
+                    "peak_memory_bytes": 49474416,
+                    "peak_memory_real_bytes": 52432896
+                }
+            }
+        },
+        "medium": {
+            "1000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.299480981,
+                        "max": 0.355082485,
+                        "mean": 0.325003486,
+                        "median": 0.320446992,
+                        "stddev": 0.022926738973587612,
+                        "samples": 3
+                    },
+                    "rows_per_second": 3120.6409327131396,
+                    "failures": 100,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 3078264,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.005538392,
+                        "max": 0.005715889,
+                        "mean": 0.005607552999999999,
+                        "median": 0.005568378,
+                        "stddev": 7.757708734327871e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 179585.50946074424,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002789239,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2178888,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.008100368,
+                        "max": 0.008227256,
+                        "mean": 0.008172650333333335,
+                        "median": 0.008190327,
+                        "stddev": 5.32884574389449e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 122095.24723493945,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002272531,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2178896,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.002437402,
+                        "max": 0.002744839,
+                        "mean": 0.0025432126666666667,
+                        "median": 0.002447397,
+                        "stddev": 0.00014262972744448775,
+                        "samples": 3
+                    },
+                    "rows_per_second": 408597.3791746905,
+                    "failures": 100,
+                    "compile_time_seconds": 0.00215953,
+                    "native_gen_time_seconds": 0.000437272,
+                    "native_write_time_seconds": 0.000664536,
+                    "cold_time_seconds": 0.001121272,
+                    "peak_memory_bytes": 2178984,
+                    "peak_memory_real_bytes": 4194304
+                }
+            },
+            "10000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 3.092112049,
+                        "max": 3.568772819,
+                        "mean": 3.2624863166666667,
+                        "median": 3.126574082,
+                        "stddev": 0.2170337516966943,
+                        "samples": 3
+                    },
+                    "rows_per_second": 3198.388951527169,
+                    "failures": 1000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 11409624,
+                    "peak_memory_real_bytes": 12582912
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.057934312,
+                        "max": 0.058831043,
+                        "mean": 0.05824574133333333,
+                        "median": 0.057971869,
+                        "stddev": 0.0004141546915620876,
+                        "samples": 3
+                    },
+                    "rows_per_second": 172497.45734435436,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002384583,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 10510248,
+                    "peak_memory_real_bytes": 12582912
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.087495379,
+                        "max": 0.088898335,
+                        "mean": 0.08842356433333333,
+                        "median": 0.088876979,
+                        "stddev": 0.0006563840488846604,
+                        "samples": 3
+                    },
+                    "rows_per_second": 112515.0754730311,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002208266,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 10510256,
+                    "peak_memory_real_bytes": 12582912
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.028676634,
+                        "max": 0.02956012,
+                        "mean": 0.029048843,
+                        "median": 0.028909775,
+                        "stddev": 0.0003738465010464409,
+                        "samples": 3
+                    },
+                    "rows_per_second": 345903.7643841919,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002777403,
+                    "native_gen_time_seconds": 0.000517587,
+                    "native_write_time_seconds": 0.000814253,
+                    "cold_time_seconds": 0.001513838,
+                    "peak_memory_bytes": 10510344,
+                    "peak_memory_real_bytes": 12582912
+                }
+            },
+            "100000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 33.486834102,
+                        "max": 34.100895456,
+                        "mean": 33.73831475166667,
+                        "median": 33.627214697,
+                        "stddev": 0.2627105545770619,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2973.7818282321596,
+                    "failures": 10000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 94520824,
+                    "peak_memory_real_bytes": 96473088
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.577983693,
+                        "max": 0.599295323,
+                        "mean": 0.5877332943333333,
+                        "median": 0.585920867,
+                        "stddev": 0.008794318732120396,
+                        "samples": 3
+                    },
+                    "rows_per_second": 170671.51151658848,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.004235264,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 93710440,
+                    "peak_memory_real_bytes": 96473088
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.875703116,
+                        "max": 0.928297746,
+                        "mean": 0.8951205296666668,
+                        "median": 0.881360727,
+                        "stddev": 0.023573260321508808,
+                        "samples": 3
+                    },
+                    "rows_per_second": 113460.92120576187,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.002016622,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 93779888,
+                    "peak_memory_real_bytes": 96473088
+                },
+                "native": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.287242351,
+                        "max": 0.293341519,
+                        "mean": 0.2893262253333333,
+                        "median": 0.287394806,
+                        "stddev": 0.002839923479478076,
+                        "samples": 3
+                    },
+                    "rows_per_second": 347953.4003826082,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.002429294,
+                    "native_gen_time_seconds": 0.001038149,
+                    "native_write_time_seconds": 0.001096649,
+                    "cold_time_seconds": 0.003316566,
+                    "peak_memory_bytes": 93816976,
+                    "peak_memory_real_bytes": 96473088
+                }
+            }
+        },
+        "complex": {
+            "1000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.352497428,
+                        "max": 0.365582092,
+                        "mean": 0.36048670266666666,
+                        "median": 0.363380588,
+                        "stddev": 0.005720316846707325,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2751.9356647636882,
+                    "failures": 700,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 3101224,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.006652912,
+                        "max": 0.006753497,
+                        "mean": 0.006716496333333333,
+                        "median": 0.00674308,
+                        "stddev": 4.516159176655392e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 148300.18329902654,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002185828,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2201848,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.009725907,
+                        "max": 0.009804396,
+                        "mean": 0.00976701,
+                        "median": 0.009770727,
+                        "stddev": 3.215061271577854e-5,
+                        "samples": 3
+                    },
+                    "rows_per_second": 102346.5295878188,
+                    "failures": 100,
+                    "compile_time_seconds": 0.002157419,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2201856,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "native": {
+                    "supported": false
+                }
+            },
+            "10000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 3.580878573,
+                        "max": 3.88071488,
+                        "mean": 3.7554227216666667,
+                        "median": 3.804674712,
+                        "stddev": 0.12726552731119728,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2628.3455898239745,
+                    "failures": 7000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 11653384,
+                    "peak_memory_real_bytes": 14680064
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.069458909,
+                        "max": 0.070172048,
+                        "mean": 0.06988625266666666,
+                        "median": 0.070027801,
+                        "stddev": 0.0003078622596035809,
+                        "samples": 3
+                    },
+                    "rows_per_second": 142800.42864690267,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002154674,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 10754008,
+                    "peak_memory_real_bytes": 12582912
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.100735929,
+                        "max": 0.102920064,
+                        "mean": 0.10187409766666666,
+                        "median": 0.1019663,
+                        "stddev": 0.0008940497291390215,
+                        "samples": 3
+                    },
+                    "rows_per_second": 98071.61777959974,
+                    "failures": 1000,
+                    "compile_time_seconds": 0.002063349,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 10754016,
+                    "peak_memory_real_bytes": 12582912
+                },
+                "native": {
+                    "supported": false
+                }
+            },
+            "100000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 36.970116664,
+                        "max": 38.508598367,
+                        "mean": 37.706117873000004,
+                        "median": 37.639638588,
+                        "stddev": 0.6298391906494996,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2656.7736501030404,
+                    "failures": 70000,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 96975792,
+                    "peak_memory_real_bytes": 98570240
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.695916581,
+                        "max": 0.724963085,
+                        "mean": 0.7128522383333333,
+                        "median": 0.717677049,
+                        "stddev": 0.012339204380952847,
+                        "samples": 3
+                    },
+                    "rows_per_second": 139338.4393988054,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.002391503,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 96163896,
+                    "peak_memory_real_bytes": 98570240
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 1.044907173,
+                        "max": 1.108919811,
+                        "mean": 1.0836292883333334,
+                        "median": 1.097060881,
+                        "stddev": 0.027805397762571276,
+                        "samples": 3
+                    },
+                    "rows_per_second": 91152.64406187499,
+                    "failures": 10000,
+                    "compile_time_seconds": 0.004514712,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 96230328,
+                    "peak_memory_real_bytes": 98570240
+                },
+                "native": {
+                    "supported": false
+                }
+            }
+        },
+        "etl": {
+            "1000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.451262958,
+                        "max": 0.553597944,
+                        "mean": 0.488739842,
+                        "median": 0.461358624,
+                        "stddev": 0.046046430656296544,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2167.5112330836155,
+                    "failures": 572,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 3534904,
+                    "peak_memory_real_bytes": 6291456
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.00987528,
+                        "max": 0.011559248,
+                        "mean": 0.010760840666666667,
+                        "median": 0.010847994,
+                        "stddev": 0.0006902336966029852,
+                        "samples": 3
+                    },
+                    "rows_per_second": 92182.94184159763,
+                    "failures": 143,
+                    "compile_time_seconds": 0.003383297,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2635528,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.013834525,
+                        "max": 0.014099983,
+                        "mean": 0.013937179999999999,
+                        "median": 0.013877032,
+                        "stddev": 0.0001164197115869989,
+                        "samples": 3
+                    },
+                    "rows_per_second": 72061.51863020853,
+                    "failures": 143,
+                    "compile_time_seconds": 0.002223827,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 2635536,
+                    "peak_memory_real_bytes": 4194304
+                },
+                "native": {
+                    "supported": false
+                }
+            },
+            "10000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 4.262204654,
+                        "max": 4.345472993,
+                        "mean": 4.299071632666666,
+                        "median": 4.289537251,
+                        "stddev": 0.03465623941205951,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2331.2537961218886,
+                    "failures": 5715,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 16543520,
+                    "peak_memory_real_bytes": 18874368
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.095011459,
+                        "max": 0.100141185,
+                        "mean": 0.09772335066666667,
+                        "median": 0.098017408,
+                        "stddev": 0.002104499068699295,
+                        "samples": 3
+                    },
+                    "rows_per_second": 102022.69376476473,
+                    "failures": 1429,
+                    "compile_time_seconds": 0.002104416,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 15288168,
+                    "peak_memory_real_bytes": 16777216
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 0.138256377,
+                        "max": 0.151235892,
+                        "mean": 0.145872541,
+                        "median": 0.148125354,
+                        "stddev": 0.0055331321581019504,
+                        "samples": 3
+                    },
+                    "rows_per_second": 67510.38718192701,
+                    "failures": 1429,
+                    "compile_time_seconds": 0.001990673,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 15288176,
+                    "peak_memory_real_bytes": 16777216
+                },
+                "native": {
+                    "supported": false
+                }
+            },
+            "100000": {
+                "laravel": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 43.243526859,
+                        "max": 43.492920764,
+                        "mean": 43.34685416599999,
+                        "median": 43.304114875,
+                        "stddev": 0.10620519513085289,
+                        "samples": 3
+                    },
+                    "rows_per_second": 2309.2493701500694,
+                    "failures": 57143,
+                    "compile_time_seconds": null,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 150053360,
+                    "peak_memory_real_bytes": 153096192
+                },
+                "engine": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 1.016082348,
+                        "max": 1.125297278,
+                        "mean": 1.0790941123333333,
+                        "median": 1.095902711,
+                        "stddev": 0.046143775135107264,
+                        "samples": 3
+                    },
+                    "rows_per_second": 91248.97584088557,
+                    "failures": 14286,
+                    "compile_time_seconds": 0.002257726,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 142871336,
+                    "peak_memory_real_bytes": 144707584
+                },
+                "compiled": {
+                    "supported": true,
+                    "duration_seconds": {
+                        "min": 1.419067622,
+                        "max": 1.453715178,
+                        "mean": 1.4358722106666668,
+                        "median": 1.434833832,
+                        "stddev": 0.014163849685845154,
+                        "samples": 3
+                    },
+                    "rows_per_second": 69694.48152794881,
+                    "failures": 14286,
+                    "compile_time_seconds": 0.002156225,
+                    "native_gen_time_seconds": null,
+                    "native_write_time_seconds": null,
+                    "cold_time_seconds": null,
+                    "peak_memory_bytes": 142937768,
+                    "peak_memory_real_bytes": 144707584
+                },
+                "native": {
+                    "supported": false
+                }
+            }
+        }
+    }
+}

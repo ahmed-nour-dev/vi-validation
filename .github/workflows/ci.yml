@@ -36,6 +36,7 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
           coverage: pcov
+          ini-values: opcache.enable_cli=1
 
       - name: Install dependencies
         run: |
@@ -53,6 +54,14 @@ jobs:
 
       - name: Run native compilation tests
         run: ./vendor/bin/phpunit --group native
+
+      # Lightweight performance regression gate (issue #9): compares Laravel vs vi/validation's
+      # native path back-to-back in-process so it isn't sensitive to this runner's absolute
+      # speed - see tests/Unit/Performance/RegressionBenchmarkTest.php. The full benchmark
+      # suite (tests/run-benchmarks.php) is deliberately NOT run here - it re-execs a subprocess
+      # per measurement for clean memory readings and is meant for manual/on-demand runs.
+      - name: Run performance regression gate
+        run: ./vendor/bin/phpunit --group performance
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

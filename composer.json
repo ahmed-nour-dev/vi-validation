@@ -25,6 +25,11 @@
         "symfony/uid": "^6.0|^7.0"
     },
 
+    "scripts": {
+        "bench": "php tests/run-benchmarks.php",
+        "bench:quick": "php tests/run-benchmarks.php --sizes=1000,10000 --scenarios=simple,medium"
+    },
+
     "extra": {
         "laravel": {
             "providers": [

@@ -63,6 +63,18 @@ final class SchemaValidator
     private ?\Vi\Validation\Execution\NativeValidator $cachedNativeValidator = null;
 
     /**
+     * Whether the fastest (native-compiled-closure) execution path has been resolved and
+     * cached for this instance. False before the first validate() call, or permanently when
+     * the schema contains a rule NativeCompiler cannot inline (see the "Native compilation
+     * compatibility contract" in README.md) — in that case every call falls back to
+     * ValidatorEngine instead.
+     */
+    public function isNativeCompiled(): bool
+    {
+        return $this->cachedNativeValidator !== null;
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     public function validate(array $data): ValidationResult

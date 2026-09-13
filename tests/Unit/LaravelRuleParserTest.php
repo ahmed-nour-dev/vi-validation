@@ -10,6 +10,8 @@ use Vi\Validation\Execution\ErrorCollector;
 use Vi\Validation\Execution\ValidationContext;
 use Vi\Validation\Laravel\LaravelRuleParser;
 use Vi\Validation\Rules\ClosureRule;
+use Vi\Validation\Rules\NotRegexRule;
+use Vi\Validation\Rules\RegexRule;
 use Vi\Validation\Rules\RequiredRule;
 
 #[Group('laravel')]
@@ -155,6 +157,37 @@ class LaravelRuleParserTest extends TestCase
         $this->assertNotNull($result);
         $this->assertEquals('closure', $result['rule']);
         $this->assertEquals('The :attribute is not valid.', $result['message']);
+    }
+
+    /**
+     * A {m,n} quantifier's comma must not be split into a separate rule parameter the way
+     * every other rule's params are (e.g. 'between:1,10') - splitRule() special-cases
+     * regex/not_regex for exactly this reason. Before that fix, this pattern got mangled into
+     * two fragments and RegexRule's preg_match() on the broken pattern returned false, which
+     * made the field fail validation unconditionally regardless of input.
+     */
+    public function testParseRegexRuleDoesNotSplitOnCommaInsideQuantifier(): void
+    {
+        $rules = $this->parser->parse('regex:/^[A-Za-z0-9]{3,12}$/');
+
+        $this->assertCount(1, $rules);
+        $this->assertInstanceOf(RegexRule::class, $rules[0]);
+
+        $context = new ValidationContext(['field' => 'abc123'], new ErrorCollector());
+        $this->assertNull($rules[0]->validate('abc123', 'field', $context));
+        $this->assertNotNull($rules[0]->validate('ab', 'field', $context));
+    }
+
+    public function testParseNotRegexRuleDoesNotSplitOnCommaInsideQuantifier(): void
+    {
+        $rules = $this->parser->parse('not_regex:/^[0-9]{2,4}$/');
+
+        $this->assertCount(1, $rules);
+        $this->assertInstanceOf(NotRegexRule::class, $rules[0]);
+
+        $context = new ValidationContext(['field' => 'abc'], new ErrorCollector());
+        $this->assertNull($rules[0]->validate('abc', 'field', $context));
+        $this->assertNotNull($rules[0]->validate('123', 'field', $context));
     }
 
     public function testParseRuleInterfaceInstance(): void

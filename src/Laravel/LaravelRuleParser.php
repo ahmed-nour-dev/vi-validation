@@ -67,9 +67,22 @@ final class LaravelRuleParser
     {
         $segments = explode(':', $rule, 2);
         $name = $segments[0];
-        $params = isset($segments[1]) ? explode(',', $segments[1]) : [];
 
-        return [$name, $params];
+        if (!isset($segments[1])) {
+            return [$name, []];
+        }
+
+        // regex/not_regex patterns routinely contain commas (e.g. the `{3,12}` quantifier in
+        // '/^[A-Za-z0-9]{3,12}$/') that must not be split into separate parameters - unlike
+        // every other rule, the whole remainder is exactly one parameter. Laravel's own
+        // ValidationRuleParser::parseParameters() special-cases these same two rules for the
+        // same reason; splitting on ',' here would silently mangle the pattern into garbage
+        // that never matches, making the field fail validation unconditionally.
+        if ($name === 'regex' || $name === 'not_regex') {
+            return [$name, [$segments[1]]];
+        }
+
+        return [$name, explode(',', $segments[1])];
     }
 
     /**

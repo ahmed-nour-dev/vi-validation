@@ -34,6 +34,10 @@ By participating in this project, you are expected to uphold our Code of Conduct
 2. Install dependencies: `composer install`.
 3. Run tests: `./vendor/bin/phpunit`.
 4. Run static analysis: `./vendor/bin/phpstan analyse`.
+5. Changing anything on a hot path (rules, `ValidatorEngine`, `NativeCompiler`)? Run
+   `composer bench:quick` (or the full `composer bench`) and check it against
+   `benchmark-results/latest.json` — see the README's [Benchmarks](README.md#-benchmarks)
+   section for methodology.
 
 
 ## Attribution
