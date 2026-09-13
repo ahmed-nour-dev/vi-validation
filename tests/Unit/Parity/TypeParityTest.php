@@ -132,6 +132,11 @@ class TypeParityTest extends ParityTestCase
 
     public function testEnumFailsWithInvalidValue(): void
     {
+        // Before illuminate/validation v10.37.1, Enum::message() built its message via the
+        // global trans() helper, which isn't defined outside a booted Laravel app; v10.37.1+
+        // uses $this->validator->getTranslator() instead, which this harness does provide.
+        $this->skipUnlessLaravelValidationAtLeast('10.37.1');
+
         $rules = ['status' => 'enum:' . StatusFixture::class];
         $laravelRules = ['status' => [new Enum(StatusFixture::class)]];
         $data = ['status' => 'unknown'];

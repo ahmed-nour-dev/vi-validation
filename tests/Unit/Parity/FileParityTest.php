@@ -100,12 +100,18 @@ class FileParityTest extends ParityTestCase
 
     public function testExtensionsPasses(): void
     {
+        // Laravel's 'extensions' rule was added in illuminate/validation v10.34.0; it
+        // doesn't exist as a recognized rule name on earlier v10 releases.
+        $this->skipUnlessLaravelValidationAtLeast('10.34.0');
+
         $upload = UploadedFile::fake()->create('report.csv', 5, 'text/csv');
         $this->assertParity(['report' => 'extensions:csv,txt'], ['report' => $upload]);
     }
 
     public function testExtensionsFails(): void
     {
+        $this->skipUnlessLaravelValidationAtLeast('10.34.0');
+
         $upload = UploadedFile::fake()->create('report.pdf', 5, 'application/pdf');
         $this->assertParity(['report' => 'extensions:csv,txt'], ['report' => $upload]);
     }
