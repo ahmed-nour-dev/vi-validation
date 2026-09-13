@@ -23,18 +23,31 @@ final class ExtensionsRule implements RuleInterface
             return null;
         }
 
-        $path = $this->getPath($value);
-        if ($path === null) {
-            return ['rule' => 'extensions', 'parameters' => ['values' => implode(', ', $this->extensions)]];
-        }
+        $extension = $this->getExtension($value);
 
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-
-        if (!in_array($extension, $this->extensions, true)) {
+        if ($extension === null || !in_array($extension, $this->extensions, true)) {
             return ['rule' => 'extensions', 'parameters' => ['values' => implode(', ', $this->extensions)]];
         }
 
         return null;
+    }
+
+    /**
+     * An uploaded file's real path is a temp filename with no meaningful extension
+     * ('/tmp/phpXXXXXX'); the extension that matters is the client-provided original
+     * filename's, matching Laravel's validateExtensions() (uses getClientOriginalExtension()).
+     */
+    private function getExtension(mixed $value): ?string
+    {
+        if (is_object($value) && method_exists($value, 'getClientOriginalExtension')) {
+            /** @var string $clientExtension */
+            $clientExtension = $value->getClientOriginalExtension();
+            return strtolower($clientExtension);
+        }
+
+        $path = $this->getPath($value);
+
+        return $path === null ? null : strtolower(pathinfo($path, PATHINFO_EXTENSION));
     }
 
     private function getPath(mixed $value): ?string

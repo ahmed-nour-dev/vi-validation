@@ -172,7 +172,7 @@ final class FastValidatorWrapper implements LaravelValidatorContract
 
             foreach ($rulesArray as $field => $definition) {
                 $fieldBuilder = $builder->field($field);
-                $parsedRules = $parser->parse($definition);
+                $parsedRules = $parser->parse($definition, (string) $field);
                 $fieldBuilder->rules(...$parsedRules);
             }
 
