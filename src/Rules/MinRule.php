@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Rules;
 
+use Vi\Validation\Compilation\NativeCompilationContext;
+use Vi\Validation\Compilation\NativeMinMaxCompiler;
 use Vi\Validation\Execution\ValidationContext;
 
 #[RuleName(RuleId::MIN)]
-final class MinRule implements RuleInterface, NumericAwareInterface
+final class MinRule implements RuleInterface, NumericAwareInterface, NativeCompilableInterface
 {
     private int|float $min;
     private bool $isNumeric = false;
@@ -57,5 +59,15 @@ final class MinRule implements RuleInterface, NumericAwareInterface
         }
 
         return null;
+    }
+
+    public function compileNative(NativeCompilationContext $context): string
+    {
+        return NativeMinMaxCompiler::compile($context, $this->min, $this->isNumeric, 'min', '<');
+    }
+
+    public function isImplicitForNative(): bool
+    {
+        return false;
     }
 }

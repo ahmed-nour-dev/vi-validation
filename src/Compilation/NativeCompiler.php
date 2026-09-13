@@ -6,19 +6,27 @@ namespace Vi\Validation\Compilation;
 
 use Vi\Validation\Execution\CompiledField;
 use Vi\Validation\Execution\CompiledSchema;
+use Vi\Validation\Rules\NativeCompilableInterface;
 use Vi\Validation\Rules\RuleInterface;
 use ReflectionClass;
-use RuntimeException;
 
 /**
  * NativeCompiler generates highly optimized PHP code for validation schemas.
- * It inlines common rules to minimize method calls and object allocations.
+ * It inlines rules that declare themselves native-compilable to minimize
+ * method calls and object allocations.
  *
  * Compatibility contract: a native validator must never change validation
  * semantics compared to ValidatorEngine. If a schema contains any rule that
  * cannot be inlined, compile() throws UnsupportedNativeRuleException instead
  * of silently omitting the rule. Callers must catch it (or check
  * canCompile() up front) and fall back to ValidatorEngine for that schema.
+ *
+ * Whether a rule is inlinable is never guessed from its class name: it is
+ * exactly the set of rules implementing Rules\NativeCompilableInterface (see
+ * isSupported()). That interface also carries the actual codegen
+ * (RuleInterface::compileNative()), so this class only owns the mechanics
+ * that are the same for every field - the emptiness guard, sometimes/
+ * nullable/bail wrapping, and value extraction - never rule-specific logic.
  */
 final class NativeCompiler
 {
@@ -66,27 +74,14 @@ final class NativeCompiler
 
     /**
      * Whether a single rule instance can be natively inlined.
+     *
+     * True iff the rule implements NativeCompilableInterface - there is no
+     * other path to "supported" (no class-name list, no capability
+     * guessing), so a new rule is unsupported by default until it opts in.
      */
     public function isSupported(RuleInterface $rule): bool
     {
-        return match (get_class($rule)) {
-            \Vi\Validation\Rules\RequiredRule::class,
-            \Vi\Validation\Rules\StringTypeRule::class,
-            \Vi\Validation\Rules\IntegerTypeRule::class,
-            \Vi\Validation\Rules\NumericRule::class,
-            \Vi\Validation\Rules\BooleanRule::class,
-            \Vi\Validation\Rules\ArrayRule::class,
-            \Vi\Validation\Rules\EmailRule::class,
-            \Vi\Validation\Rules\UrlRule::class,
-            \Vi\Validation\Rules\IpRule::class,
-            \Vi\Validation\Rules\JsonRule::class,
-            \Vi\Validation\Rules\MinRule::class,
-            \Vi\Validation\Rules\MaxRule::class,
-            \Vi\Validation\Rules\AlphaRule::class,
-            \Vi\Validation\Rules\AlphanumericRule::class,
-            \Vi\Validation\Rules\AlphaDashRule::class => true,
-            default => false,
-        };
+        return $rule instanceof NativeCompilableInterface;
     }
 
     /**
@@ -255,18 +250,16 @@ final class NativeCompiler
 
     private function inlineRule(RuleInterface $rule, string $fieldName, string $valName, string $indent): ?string
     {
-        $class = get_class($rule);
-
-        if (!$this->isSupported($rule)) {
+        if (!$rule instanceof NativeCompilableInterface) {
             return null;
         }
 
         // Non-implicit rules should skip if the value is "empty"
         // Implicit rules (Required, Accepted, etc.) handle empty values themselves.
-        $isImplicit = $this->isImplicitRule($class);
+        $isImplicit = $rule->isImplicitForNative();
         $prefix = "";
         $suffix = "";
-        
+
         if (!$isImplicit) {
             $prefix = "{$indent}if (!(\$val === null || (is_string(\$val) && \$val === '') || (is_array(\$val) && \$val === []))) {\n";
             $prefix = str_replace("\$val", $valName, $prefix);
@@ -274,176 +267,8 @@ final class NativeCompiler
             $suffix = substr($indent, 0, -4) . "}\n";
         }
 
-        $code = match($class) {
-            \Vi\Validation\Rules\RequiredRule::class => $this->inlineRequired($fieldName, $valName, $indent),
-            \Vi\Validation\Rules\StringTypeRule::class => $this->inlineType($fieldName, $valName, 'string', 'is_string', $indent),
-            \Vi\Validation\Rules\IntegerTypeRule::class => $this->inlineInteger($fieldName, $valName, $indent),
-            \Vi\Validation\Rules\NumericRule::class => $this->inlineType($fieldName, $valName, 'numeric', 'is_numeric', $indent),
-            \Vi\Validation\Rules\BooleanRule::class => $this->inlineBoolean($fieldName, $valName, $indent),
-            \Vi\Validation\Rules\ArrayRule::class => $this->inlineType($fieldName, $valName, 'array', 'is_array', $indent),
-            \Vi\Validation\Rules\EmailRule::class => $this->inlineEmail($fieldName, $valName, $indent),
-            \Vi\Validation\Rules\UrlRule::class => $this->inlineFilter($fieldName, $valName, 'url', FILTER_VALIDATE_URL, $indent),
-            \Vi\Validation\Rules\IpRule::class => $this->inlineFilter($fieldName, $valName, 'ip', FILTER_VALIDATE_IP, $indent),
-            \Vi\Validation\Rules\JsonRule::class => $this->inlineJson($fieldName, $valName, $indent),
-            \Vi\Validation\Rules\MinRule::class => $this->inlineMinMax($rule, $fieldName, $valName, 'min', '<', $indent),
-            \Vi\Validation\Rules\MaxRule::class => $this->inlineMinMax($rule, $fieldName, $valName, 'max', '>', $indent),
-            \Vi\Validation\Rules\AlphaRule::class => $this->inlineRegex($fieldName, $valName, 'alpha', '/^\pL+$/u', $indent),
-            \Vi\Validation\Rules\AlphanumericRule::class => $this->inlineRegex($fieldName, $valName, 'alpha_num', '/^[\pL\pN]+$/u', $indent),
-            \Vi\Validation\Rules\AlphaDashRule::class => $this->inlineRegex($fieldName, $valName, 'alpha_dash', '/^[\pL\pM\pN_-]+$/u', $indent),
-            // Unreachable: isSupported() already filtered to the classes above.
-            // Kept as a loud failure rather than a silent skip in case the two
-            // lists ever drift apart.
-            default => throw new UnsupportedNativeRuleException(
-                "Rule {$class} is marked supported but has no inliner implementation."
-            ),
-        };
+        $code = $rule->compileNative(new NativeCompilationContext($fieldName, $valName, $indent));
 
         return $prefix . $code . $suffix;
-    }
-
-    private function isImplicitRule(string $class): bool
-    {
-        return in_array($class, [
-            \Vi\Validation\Rules\RequiredRule::class,
-            \Vi\Validation\Rules\RequiredIfRule::class,
-            \Vi\Validation\Rules\RequiredUnlessRule::class,
-            \Vi\Validation\Rules\RequiredWithRule::class,
-            \Vi\Validation\Rules\RequiredWithAllRule::class,
-            \Vi\Validation\Rules\RequiredWithoutRule::class,
-            \Vi\Validation\Rules\RequiredWithoutAllRule::class,
-            \Vi\Validation\Rules\RequiredIfAcceptedRule::class,
-            \Vi\Validation\Rules\AcceptedRule::class,
-            \Vi\Validation\Rules\AcceptedIfRule::class,
-            \Vi\Validation\Rules\DeclinedRule::class,
-            \Vi\Validation\Rules\DeclinedIfRule::class,
-            \Vi\Validation\Rules\FilledRule::class,
-            \Vi\Validation\Rules\PresentRule::class,
-            \Vi\Validation\Rules\ProhibitedRule::class,
-            \Vi\Validation\Rules\ProhibitedIfRule::class,
-            \Vi\Validation\Rules\ProhibitedUnlessRule::class,
-        ], true);
-    }
-
-    private function inlineInteger(string $fieldName, string $valName, string $indent): string
-    {
-        return "{$indent}if (!is_int({$valName}) && !(is_string({$valName}) && preg_match('/^-?\d+$/', {$valName}))) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'integer', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineRequired(string $fieldName, string $valName, string $indent): string
-    {
-        return "{$indent}if ({$valName} === null || (is_string({$valName}) && {$valName} === '') || (is_array({$valName}) && {$valName} === [])) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'required', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineType(string $fieldName, string $valName, string $ruleName, string $func, string $indent): string
-    {
-        return "{$indent}if ({$valName} !== null && !{$func}({$valName})) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => '{$ruleName}', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineBoolean(string $fieldName, string $valName, string $indent): string
-    {
-        return "{$indent}if ({$valName} !== null && !in_array({$valName}, [true, false, 0, 1, '0', '1'], true)) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'boolean', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineEmail(string $fieldName, string $valName, string $indent): string
-    {
-        return "{$indent}if ({$valName} !== null && (!is_string({$valName}) || filter_var({$valName}, FILTER_VALIDATE_EMAIL) === false)) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'email', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineFilter(string $fieldName, string $valName, string $ruleName, int $filter, string $indent): string
-    {
-         return "{$indent}if ({$valName} !== null && (!is_string({$valName}) || filter_var({$valName}, {$filter}) === false)) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => '{$ruleName}', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineJson(string $fieldName, string $valName, string $indent): string
-    {
-        return "{$indent}if ({$valName} !== null) {\n" .
-               "{$indent}    if (!is_string({$valName})) {\n" .
-               "{$indent}        \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'json', 'message' => null];\n" .
-               "{$indent}        \$hasErrors = true;\n" .
-               "{$indent}    } else {\n" .
-               "{$indent}        json_decode({$valName});\n" .
-               "{$indent}        if (json_last_error() !== JSON_ERROR_NONE) {\n" .
-               "{$indent}            \$errors['" . addslashes($fieldName) . "'][] = ['rule' => 'json', 'message' => null];\n" .
-               "{$indent}            \$hasErrors = true;\n" .
-               "{$indent}        }\n" .
-               "{$indent}    }\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineRegex(string $fieldName, string $valName, string $ruleName, string $pattern, string $indent): string
-    {
-        $patternExport = var_export($pattern, true);
-        return "{$indent}if ({$valName} !== null && (!is_string({$valName}) || !preg_match({$patternExport}, (string){$valName}))) {\n" .
-               "{$indent}    \$errors['" . addslashes($fieldName) . "'][] = ['rule' => '{$ruleName}', 'message' => null];\n" .
-               "{$indent}    \$hasErrors = true;\n" .
-               "{$indent}}\n";
-    }
-
-    private function inlineMinMax(RuleInterface $rule, string $fieldName, string $valName, string $ruleName, string $op, string $indent): string
-    {
-        $limit = $this->getProperty($rule, $ruleName);
-        $limitExport = var_export($limit, true);
-
-        $isNumeric = false;
-        try {
-            $isNumeric = $this->getProperty($rule, 'isNumeric');
-        } catch (\Exception $e) {
-            // Property might not exist or be accessible, default false
-        }
-        
-        return "{$indent}if ({$valName} !== null) {\n" .
-               "{$indent}    \$invalid = false;\n" .
-               "{$indent}    if (" . ($isNumeric ? "is_numeric({$valName})" : "(is_int({$valName}) || is_float({$valName}))") . ") {\n" .
-               "{$indent}        if ((float){$valName} {$op} {$limitExport}) \$invalid = true;\n" .
-               "{$indent}        \$type_tag = 'numeric';\n" .
-               "{$indent}    } elseif (is_string({$valName})) {\n" .
-               "{$indent}        if (mb_strlen({$valName}) {$op} {$limitExport}) \$invalid = true;\n" .
-               "{$indent}        \$type_tag = 'string';\n" .
-               "{$indent}    } elseif (is_array({$valName})) {\n" .
-               "{$indent}        if (count({$valName}) {$op} {$limitExport}) \$invalid = true;\n" .
-               "{$indent}        \$type_tag = 'array';\n" .
-               "{$indent}    } else {\n" .
-               "{$indent}        \$type_tag = 'numeric';\n" .
-               "{$indent}    }\n" .
-               "{$indent}    if (\$invalid) {\n" .
-               "{$indent}        \$errors['" . addslashes($fieldName) . "'][] = ['rule' => '{$ruleName}', 'params' => ['type' => \$type_tag, '{$ruleName}' => {$limitExport}], 'message' => null];\n" .
-               "{$indent}        \$hasErrors = true;\n" .
-               "{$indent}    }\n" .
-               "{$indent}}\n";
-    }
-
-    private function getProperty(object $object, string $property): mixed
-    {
-        $reflection = new ReflectionClass($object);
-        if (!$reflection->hasProperty($property)) {
-             $parent = $reflection->getParentClass();
-             if ($parent && $parent->hasProperty($property)) {
-                 $prop = $parent->getProperty($property);
-             } else {
-                 throw new RuntimeException("Property {$property} not found in " . get_class($object));
-             }
-        } else {
-            $prop = $reflection->getProperty($property);
-        }
-        $prop->setAccessible(true);
-        return $prop->getValue($object);
     }
 }

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Rules;
 
+use Vi\Validation\Compilation\NativeCompilationContext;
 use Vi\Validation\Execution\ValidationContext;
 
 #[RuleName(RuleId::INTEGER, aliases: ['int'])]
-final class IntegerTypeRule implements RuleInterface
+final class IntegerTypeRule implements RuleInterface, NativeCompilableInterface
 {
     public function validate(mixed $value, string $field, ValidationContext $context): ?array
     {
@@ -38,5 +39,18 @@ final class IntegerTypeRule implements RuleInterface
         }
 
         return ctype_digit($value);
+    }
+
+    public function compileNative(NativeCompilationContext $context): string
+    {
+        $v = $context->valName;
+        $condition = "!is_int({$v}) && !(is_string({$v}) && preg_match('/^-?\\d+\$/', {$v}))";
+
+        return $context->emitError($condition, 'integer');
+    }
+
+    public function isImplicitForNative(): bool
+    {
+        return false;
     }
 }
