@@ -241,7 +241,7 @@ Every validation call returns a `ValidationResult` with a small, focused API:
 | :--- | :--- |
 | `isValid(): bool` | Whether the data passed all rules. |
 | `data(): array` | The raw input data that was validated. |
-| `validated(): array` | The input data minus any fields excluded via `exclude*` rules. |
+| `validated(): array` | `data()` with any fields excluded via `exclude`/`exclude_if`/`exclude_unless`/`exclude_with`/`exclude_without` removed. |
 | `errors(): array` | Raw, per-field error entries (`rule`, `params`, `message`). |
 | `messages(): array` | Formatted, human-readable messages grouped by field. |
 | `allMessages(): array` | A flat list of every message across all fields. |
@@ -260,7 +260,47 @@ if ($result->isValid()) {
 echo $result; // "Validation passed." or a newline-joined list of messages
 ```
 
-### 🎯 Custom Validation Rules (Closures)
+#### `validated()` exclusion semantics
+
+`validated()` starts from `data()` and removes every field marked by an `exclude`,
+`exclude_if`, `exclude_unless`, `exclude_with`, or `exclude_without` rule. `data()` itself is
+never mutated — `validated()` only ever rebuilds the branches it removes from, so unrelated
+sibling data (including other keys under the same parent) is left untouched.
+
+Excluded field names are resolved as dot-separated paths, and a `*` segment matches every
+element of the array at that position — the same addressing `->field('profile.email')` and
+Laravel's `'items.*.sku'` rule keys use:
+
+```php
+$schema = Validator::schema()
+    ->field('items.*.internal_cost')->excludeIf('include_costs', false)
+    ->compile();
+
+$result = $schema->validate([
+    'items' => [
+        ['sku' => 'A', 'internal_cost' => 4.50],
+        ['sku' => 'B', 'internal_cost' => 9.10],
+    ],
+    'include_costs' => false,
+]);
+
+$result->validated();
+// ['items' => [['sku' => 'A'], ['sku' => 'B']], 'include_costs' => false]
+```
+
+A few intentional semantics worth calling out (all covered by regression tests in
+`tests/Unit/Execution/ValidationResultTest.php`):
+
+- **Missing paths are silently ignored.** Excluding `profile.email` when `profile` doesn't
+  exist in the data (or isn't an array) is a no-op, not an error.
+- **Excluding a parent and one of its children together is safe**, regardless of which is
+  excluded first — once the parent is removed, the now-missing child path is just another
+  missing path.
+- **Numeric array indexes work like any other segment** (`items.0.sku`), since PHP array
+  keys already unify string and integer indexing.
+- **This differs from Laravel**, whose `Validator::validated()` filters the field list down
+  to only rules that were actually run rather than subtracting excluded paths from the input;
+  the *observable result* — excluded data is absent from the safe payload — is the same.
 
 Drop in one-off rules using a Laravel-style closure — no need to write a dedicated rule class:
 
