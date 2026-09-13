@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vi\Validation\Tests\Unit\Parity;
 
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -17,6 +18,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * vi/validation's FileRule/ImageRule (needs an SplFileInfo), so the same object is valid
  * input to both sides.
  */
+#[Group('laravel')]
 class FileParityTest extends ParityTestCase
 {
     /** @var list<string> */

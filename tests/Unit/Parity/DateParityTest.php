@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
  * Covers RuleId: date_format, date_equals, after, after_or_equal, before, before_or_equal,
  * timezone.
  */
+#[Group('laravel')]
 class DateParityTest extends ParityTestCase
 {
     public function testDateFormatPasses(): void

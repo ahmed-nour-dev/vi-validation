@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Comprehensive gap analysis and roadmap document.
 - Week 1 foundational tasks (CHANGELOG, LICENSE, CONTRIBUTING).
+- Explicit PHP/Laravel compatibility matrix: CI now runs a `--prefer-lowest` dependency job
+  and clearly-named Laravel-integration/native-compilation PHPUnit testsuites per matrix cell,
+  and the supported combinations are documented in a new README "Compatibility" section.
 
 ## [0.1.0] - 2026-02-04
 

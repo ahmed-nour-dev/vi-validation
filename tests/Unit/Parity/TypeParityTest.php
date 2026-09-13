@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vi\Validation\Tests\Unit\Parity;
 
 use Illuminate\Validation\Rules\Enum;
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 enum StatusFixture: string
@@ -16,6 +17,7 @@ enum StatusFixture: string
 /**
  * Covers RuleId: string, integer, numeric, boolean, array, list, date, json, enum, decimal.
  */
+#[Group('laravel')]
 class TypeParityTest extends ParityTestCase
 {
     public function testStringPasses(): void

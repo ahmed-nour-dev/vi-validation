@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -11,6 +12,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * alpha_dash, alpha_num, ascii, regex, not_regex, starts_with, ends_with, doesnt_start_with,
  * doesnt_end_with, lowercase, uppercase.
  */
+#[Group('laravel')]
 class StringParityTest extends ParityTestCase
 {
     public function testEmailPasses(): void

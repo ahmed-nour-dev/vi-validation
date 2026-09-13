@@ -37,6 +37,7 @@ Stop trading performance for convenience. **vi/validation** delivers **17x to 34
 ## 📚 Table of Contents
 
 - [Installation](#-installation)
+- [Compatibility](#-compatibility)
 - [Quick Start](#-quick-start)
 - [Key Features & Documentation](#-key-features--documentation)
   - [Streaming & Large Datasets](#-streaming--large-datasets)
@@ -59,6 +60,32 @@ Stop trading performance for convenience. **vi/validation** delivers **17x to 34
 ```bash
 composer require vi/validation
 ```
+
+---
+
+## ✅ Compatibility
+
+Every combination below is exercised on every push/PR by the [CI matrix](.github/workflows/ci.yml)
+— for each cell that CI job runs the full PHPUnit suite (including the Laravel integration tests
+in `tests/Unit/Parity/` + `LaravelRuleParserTest`, and the native-compilation tests in
+`NativeCompilerTest` + `tests/Unit/Compilation/`) plus PHPStan level 8. A combination not listed
+here is **not tested and not supported** — it may work, but breakage in it isn't a bug.
+
+| PHP \ Laravel | 10.x | 11.x |
+| :---: | :---: | :---: |
+| **8.1** | ✅ | ⛔ requires PHP >= 8.2 |
+| **8.2** | ✅ | ✅ |
+| **8.3** | ✅ | ✅ |
+
+- CI additionally runs an `illuminate/validation:^10.0` install with `composer update
+  --prefer-lowest` on PHP 8.1 to catch code that only happens to work against a newer
+  dependency than `composer.json` actually declares.
+- vi/validation works standalone (no Laravel app) on any PHP version in the table above —
+  see [Standalone PHP](#1-standalone-php).
+- PHP 8.4+ and Laravel 12+ are not yet in the matrix. Adding a new PHP or Laravel version is a
+  one-line addition to the `matrix:` block in `.github/workflows/ci.yml` (plus an `exclude:` row
+  if the new Laravel major raises its minimum PHP version) — no restructuring of the test suite
+  is required.
 
 ---
 

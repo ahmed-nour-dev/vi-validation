@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Supported combinations live only here and in composer.json's "php"/"illuminate/validation"
+# constraints — adding a new PHP or Laravel release means adding one array entry (and an
+# `exclude` row if a Laravel major raises its minimum PHP version), no other restructuring.
+# Anything not listed in `php` x `laravel` below is unsupported and untested; see the
+# "Compatibility" section of README.md for the human-readable version of this matrix.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,10 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         php: [8.1, 8.2, 8.3]
-        laravel: [10.*, 11.*]
+        laravel: ['10.*', '11.*']
         exclude:
+          # Laravel 11 requires PHP >= 8.2.
           - php: 8.1
-            laravel: 11.*
+            laravel: '11.*'
 
     name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }}
 
@@ -39,11 +45,46 @@ jobs:
       - name: Run PHPStan
         run: ./vendor/bin/phpstan analyse -c phpstan.neon
 
-      - name: Run Tests
+      - name: Run full PHPUnit suite
         run: ./vendor/bin/phpunit --coverage-clover coverage.xml
+
+      - name: Run Laravel integration tests
+        run: ./vendor/bin/phpunit --group laravel
+
+      - name: Run native compilation tests
+        run: ./vendor/bin/phpunit --group native
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+
+  # Verifies the package still installs and passes on the *lowest* versions each constraint
+  # in composer.json allows (php: ">=8.1", illuminate/validation: "^10.0"), catching version
+  # constraints that are only accidentally satisfied by whatever composer.lock happens to pick.
+  test-lowest-dependencies:
+    runs-on: ubuntu-latest
+    name: PHP 8.1 - Laravel 10.* (lowest dependencies)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+          coverage: none
+
+      - name: Install lowest dependencies
+        run: |
+          composer require "illuminate/validation:10.*" --no-interaction --no-update
+          composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHPStan
+        run: ./vendor/bin/phpstan analyse -c phpstan.neon
+
+      - name: Run full PHPUnit suite
+        run: ./vendor/bin/phpunit

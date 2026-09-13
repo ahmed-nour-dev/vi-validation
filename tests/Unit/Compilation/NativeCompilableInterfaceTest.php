@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Compilation;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Vi\Validation\Compilation\NativeCompilationContext;
 use Vi\Validation\Compilation\NativeCompiler;
@@ -21,6 +22,7 @@ use Vi\Validation\Validator;
  *   to keep the two execution paths provably in sync.
  * - The documented extension point for custom, user-defined rules.
  */
+#[Group('native')]
 class NativeCompilableInterfaceTest extends TestCase
 {
     // --- NativeCompilationContext ---

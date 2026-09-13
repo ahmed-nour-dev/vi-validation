@@ -9,6 +9,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\Rules\Password;
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Execution\ErrorCollector;
 use Vi\Validation\Execution\ValidationContext;
 use Vi\Validation\Rules\CurrentPasswordRule;
@@ -23,6 +24,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * Rule object; current_password needs a real auth guard + hasher), so these are compared via
  * directly-constructed rule objects/fakes rather than assertParity()'s shared rules array.
  */
+#[Group('laravel')]
 class AuthParityTest extends ParityTestCase
 {
     public function testPasswordPassesPolicy(): void

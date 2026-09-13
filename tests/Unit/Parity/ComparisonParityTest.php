@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
  * Covers RuleId: in, not_in, gt, gte, lt, lte, confirmed, same, different.
  */
+#[Group('laravel')]
 class ComparisonParityTest extends ParityTestCase
 {
     public function testInPasses(): void

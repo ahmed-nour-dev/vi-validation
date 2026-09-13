@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
  * Covers RuleId: required, nullable, filled, present, missing, bail, sometimes.
  */
+#[Group('laravel')]
 class CorePresenceParityTest extends ParityTestCase
 {
     public function testRequiredPassesWhenPresent(): void
