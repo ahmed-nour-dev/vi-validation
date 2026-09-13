@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -17,6 +18,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * "partial") — Laravel's multi-value form (`accepted_if:field,v1,v2`) is intentionally not
  * covered here since the underlying rule classes don't support it yet.
  */
+#[Group('laravel')]
 class ConditionalParityTest extends ParityTestCase
 {
     public function testRequiredIfFailsWhenTriggered(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -13,6 +14,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * "not_applicable" for direct string-rule comparison), so they're exercised through their
  * actual usage patterns: an inline Laravel-style closure rule, and Validator::sometimes().
  */
+#[Group('laravel')]
 class ClosureParityTest extends ParityTestCase
 {
     public function testInlineClosurePassesForValidValue(): void

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
  * Covers RuleId: array, distinct, required_array_keys.
  */
+#[Group('laravel')]
 class ArrayParityTest extends ParityTestCase
 {
     public function testArrayWithAllowedKeysPasses(): void

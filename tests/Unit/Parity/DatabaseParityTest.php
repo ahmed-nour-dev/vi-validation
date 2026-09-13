@@ -10,12 +10,13 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\DatabasePresenceVerifier;
 use Illuminate\Validation\Factory;
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Execution\ValidatorEngine;
 use Vi\Validation\Laravel\LaravelRuleParser;
 use Vi\Validation\Rules\DatabaseValidatorInterface;
 use Vi\Validation\Rules\RuleRegistry;
-use Vi\Validation\Schema\SchemaBuilder;
 use Vi\Validation\SchemaValidator;
+use Vi\Validation\Schema\SchemaBuilder;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -32,6 +33,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * is the only currently-working path to a database-backed check. See resources/
  * compatibility-matrix.json for "exists"/"unique".
  */
+#[Group('laravel')]
 class DatabaseParityTest extends ParityTestCase
 {
     private ?Capsule $capsule = null;

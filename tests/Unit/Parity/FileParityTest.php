@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vi\Validation\Tests\Unit\Parity;
 
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -17,6 +18,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * vi/validation's FileRule/ImageRule (needs an SplFileInfo), so the same object is valid
  * input to both sides.
  */
+#[Group('laravel')]
 class FileParityTest extends ParityTestCase
 {
     /** @var list<string> */
@@ -98,12 +100,18 @@ class FileParityTest extends ParityTestCase
 
     public function testExtensionsPasses(): void
     {
+        // Laravel's 'extensions' rule was added in illuminate/validation v10.34.0; it
+        // doesn't exist as a recognized rule name on earlier v10 releases.
+        $this->skipUnlessLaravelValidationAtLeast('10.34.0');
+
         $upload = UploadedFile::fake()->create('report.csv', 5, 'text/csv');
         $this->assertParity(['report' => 'extensions:csv,txt'], ['report' => $upload]);
     }
 
     public function testExtensionsFails(): void
     {
+        $this->skipUnlessLaravelValidationAtLeast('10.34.0');
+
         $upload = UploadedFile::fake()->create('report.pdf', 5, 'application/pdf');
         $this->assertParity(['report' => 'extensions:csv,txt'], ['report' => $upload]);
     }

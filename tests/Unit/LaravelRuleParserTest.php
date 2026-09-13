@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Vi\Validation\Execution\ErrorCollector;
 use Vi\Validation\Execution\ValidationContext;
@@ -11,6 +12,7 @@ use Vi\Validation\Laravel\LaravelRuleParser;
 use Vi\Validation\Rules\ClosureRule;
 use Vi\Validation\Rules\RequiredRule;
 
+#[Group('laravel')]
 class LaravelRuleParserTest extends TestCase
 {
     private LaravelRuleParser $parser;

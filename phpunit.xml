@@ -9,6 +9,13 @@
             <directory>tests/Unit</directory>
         </testsuite>
     </testsuites>
+    <!--
+        "laravel" and "native" groups (see class-level #[Group(...)] attributes on
+        tests/Unit/LaravelRuleParserTest.php, tests/Unit/Parity/*Test.php, tests/Unit/NativeCompilerTest.php
+        and tests/Unit/Compilation/*Test.php) let CI run and report those subsets as distinctly-named
+        checks per PHP/Laravel matrix cell (see .github/workflows/ci.yml and README.md's "Compatibility"
+        section) via the phpunit "group" CLI option, without affecting a plain phpunit run.
+    -->
     <source>
         <include>
             <directory>src</directory>

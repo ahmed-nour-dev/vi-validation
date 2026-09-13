@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit\Parity;
 
+use PHPUnit\Framework\Attributes\Group;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
@@ -12,6 +13,7 @@ use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
  * with Laravel; wildcards and depth-3+ nesting are not implemented anywhere in
  * CompiledField/ValidatorEngine and are pinned here as documented divergences.
  */
+#[Group('laravel')]
 class NestedWildcardParityTest extends ParityTestCase
 {
     public function testDepth2NestedRequiredPasses(): void

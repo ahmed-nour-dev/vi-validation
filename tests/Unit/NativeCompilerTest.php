@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Vi\Validation\Compilation\NativeCompiler;
 use Vi\Validation\Compilation\UnsupportedNativeRuleException;
@@ -13,6 +14,7 @@ use Vi\Validation\Rules\InRule;
 use Vi\Validation\Rules\RequiredRule;
 use Vi\Validation\Validator;
 
+#[Group('native')]
 class NativeCompilerTest extends TestCase
 {
     public function testCanCompileReturnsTrueForFullySupportedSchema(): void
