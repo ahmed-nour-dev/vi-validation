@@ -198,7 +198,10 @@ final class FastValidatorWrapper implements LaravelValidatorContract
             throw new ValidationException($this);
         }
 
-        return $this->materializeData();
+        /** @var ValidationResult $result */
+        $result = $this->result;
+
+        return $result->validated();
     }
 
     /**
@@ -206,11 +209,7 @@ final class FastValidatorWrapper implements LaravelValidatorContract
      */
     public function validate(): array
     {
-        if ($this->fails()) {
-            throw new ValidationException($this);
-        }
-
-        return $this->materializeData();
+        return $this->validated();
     }
 
     /**

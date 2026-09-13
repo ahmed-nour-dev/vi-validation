@@ -42,20 +42,69 @@ final class ValidationResult
     }
 
     /**
+     * Return {@see data()} with every excluded field removed.
+     *
+     * An excluded field name may address a nested path ('profile.address.city') or contain
+     * a '*' wildcard segment ('items.*.sku'), matching every element of the array at that
+     * position. Removal walks the path segment by segment and rebuilds only the branches it
+     * touches, so {@see data()} is never mutated and sibling data is left untouched. A path
+     * (or wildcard branch) that doesn't exist in the data is silently ignored - this also
+     * makes it safe to exclude both a parent and one of its children, in either order.
+     *
      * @return array<string, mixed>
      */
     public function validated(): array
     {
+        /** @var array<string, mixed> $validated */
         $validated = $this->data;
 
         foreach ($this->excludedFields as $field) {
-            // Simple depth-1 removal for now
-            if (isset($validated[$field])) {
-                unset($validated[$field]);
-            }
+            /** @var array<string, mixed> $validated */
+            $validated = $this->removeExcludedPath($validated, explode('.', $field));
         }
 
         return $validated;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     * @param list<string> $segments
+     * @return array<array-key, mixed>
+     */
+    private function removeExcludedPath(array $data, array $segments): array
+    {
+        $segment = array_shift($segments);
+
+        if ($segment === null) {
+            return $data;
+        }
+
+        if ($segment === '*') {
+            foreach ($data as $key => $value) {
+                if ($segments === []) {
+                    unset($data[$key]);
+                } elseif (is_array($value)) {
+                    $data[$key] = $this->removeExcludedPath($value, $segments);
+                }
+            }
+
+            return $data;
+        }
+
+        if (!array_key_exists($segment, $data)) {
+            return $data;
+        }
+
+        if ($segments === []) {
+            unset($data[$segment]);
+            return $data;
+        }
+
+        if (is_array($data[$segment])) {
+            $data[$segment] = $this->removeExcludedPath($data[$segment], $segments);
+        }
+
+        return $data;
     }
 
     public function isValid(): bool
