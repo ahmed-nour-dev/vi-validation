@@ -46,6 +46,23 @@ abstract class ParityTestCase extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Some rules (e.g. 'list', added in Laravel 11) don't exist on every Laravel version
+     * this project supports (composer.json: illuminate/validation ^10.0|^11.0, and CI runs
+     * both). Laravel throws BadMethodCallException for a rule name it doesn't recognize, so
+     * tests exercising such a rule must skip rather than fail on older installed versions.
+     */
+    protected function skipUnlessLaravelValidationAtLeast(string $version): void
+    {
+        $installed = \Composer\InstalledVersions::getVersion('illuminate/validation');
+
+        if ($installed === null || version_compare($installed, $version, '<')) {
+            self::markTestSkipped(
+                "Requires illuminate/validation >= $version; installed: " . ($installed ?? 'unknown')
+            );
+        }
+    }
+
     protected function registry(): RuleRegistry
     {
         if ($this->registry === null) {

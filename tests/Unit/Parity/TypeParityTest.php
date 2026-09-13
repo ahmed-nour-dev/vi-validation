@@ -70,11 +70,14 @@ class TypeParityTest extends ParityTestCase
 
     public function testListPassesWithSequentialArray(): void
     {
+        // 'list' was added to Laravel in v11; on v10 it isn't a recognized rule name.
+        $this->skipUnlessLaravelValidationAtLeast('11.0.0');
         $this->assertParity(['tags' => 'list'], ['tags' => ['a', 'b', 'c']]);
     }
 
     public function testListFailsWithAssociativeArray(): void
     {
+        $this->skipUnlessLaravelValidationAtLeast('11.0.0');
         $this->assertParity(['tags' => 'list'], ['tags' => ['x' => 'a', 'y' => 'b']]);
     }
 
