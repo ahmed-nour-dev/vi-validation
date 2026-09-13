@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Rules;
 
+use Vi\Validation\Compilation\NativeCompilationContext;
+use Vi\Validation\Compilation\NativeMinMaxCompiler;
 use Vi\Validation\Execution\ValidationContext;
 
 #[RuleName(RuleId::MAX)]
-final class MaxRule implements RuleInterface, NumericAwareInterface
+final class MaxRule implements RuleInterface, NumericAwareInterface, NativeCompilableInterface
 {
     private int|float $max;
     private bool $isNumeric = false;
@@ -57,5 +59,15 @@ final class MaxRule implements RuleInterface, NumericAwareInterface
         }
 
         return null;
+    }
+
+    public function compileNative(NativeCompilationContext $context): string
+    {
+        return NativeMinMaxCompiler::compile($context, $this->max, $this->isNumeric, 'max', '>');
+    }
+
+    public function isImplicitForNative(): bool
+    {
+        return false;
     }
 }
