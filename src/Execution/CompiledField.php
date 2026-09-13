@@ -145,6 +145,18 @@ final class CompiledField
         return $this->isSometimes;
     }
 
+    /**
+     * Whether this field carries `exclude`/`exclude_if`/`exclude_unless`/`exclude_with`/
+     * `exclude_without` semantics. NativeCompiler has no inlined equivalent for these (the
+     * marker rule is consumed here and never appears in getRules()), so it must treat any
+     * such field as unsupported and fall back to ValidatorEngine rather than silently
+     * ignoring the exclusion.
+     */
+    public function hasExclusionSemantics(): bool
+    {
+        return $this->isAlwaysExcluded || $this->exclusionRules !== [];
+    }
+
     public function shouldExclude(ValidationContext $context): bool
     {
         if ($this->isAlwaysExcluded) {

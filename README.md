@@ -45,6 +45,7 @@ Stop trading performance for convenience. **vi/validation** delivers **17x to 34
   - [Custom Validation Rules (Closures)](#-custom-validation-rules-closures)
   - [Conditional Field Rules](#-conditional-field-rules)
   - [Supported Rules](#-supported-rules)
+  - [Parity & Compatibility](#-parity--compatibility)
   - [Localization & Custom Messages](#-localization--custom-messages)
   - [Long-Running Processes (Octane, Swoole, RoadRunner)](#-long-running-processes-octane-swoole-roadrunner)
 - [Configuration](#-configuration)
@@ -309,11 +310,43 @@ We support a comprehensive set of almost all standard Laravel rules.
 | **Comparison** | `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `confirmed`, `same`, `different` |
 | **Dates** | `date_format`, `date_equals`, `after`, `after_or_equal`, `before`, `before_or_equal`, `timezone` |
 | **Arrays** | `distinct`, `required_array_keys` |
-| **Files** | `file`, `image`, `mimes`, `mimetypes`, `min_file_size`, `max_file_size`, `dimensions` |
+| **Files** | `file`, `image`, `mimes`, `mimetypes`, `extensions`, `min_file_size`, `max_file_size`, `dimensions` |
 | **Acceptance** | `accepted`, `accepted_if`, `declined`, `declined_if` |
 | **Database** | `exists`, `unique` |
 | **Auth** | `password`, `current_password` |
 | **Others** | `country`, `language` |
+
+### ✅ Parity & Compatibility
+
+`tests/Unit/Parity/` runs the same rule/data cases through Laravel's real validator and
+`vi/validation`, comparing normalized outcomes (pass/fail and which fields failed, not exact
+message text) — this is the safety net that lets us optimize the engine without silently
+drifting from Laravel's semantics. It covers every rule category, both execution paths
+(`ValidatorEngine` and the native-compiled path, compared automatically wherever a schema is
+native-compilable), and depth-2 nested attributes (`address.city`).
+
+[`resources/compatibility-matrix.json`](resources/compatibility-matrix.json) is the
+machine-readable compatibility matrix: one entry per rule with its category, parity `status`
+(`full`, `partial`, `divergent`, or `not_applicable`), whether it's native-compilable, and — for
+anything other than `full` — a note explaining why. `tests/Unit/Parity/CompatibilityMatrixTest.php`
+keeps it honest: every rule must have an entry, and every `full`/`partial` entry must actually be
+exercised by a parity test.
+
+Known, currently-intentional divergences from Laravel (see the matrix for full detail on each):
+
+- **Wildcard attributes** (`items.*.sku`) and **3+-level dot nesting** (`a.b.c`) aren't
+  implemented — `CompiledField` only resolves exactly one level of `parent.child` nesting, so a
+  wildcard or deeper path never matches real data.
+- **`ipv4`/`ipv6`** rule strings currently lose their version restriction and behave like plain
+  `ip` (a known bug, not yet fixed).
+- **`accepted_if`/`declined_if`/`exclude_if`/`exclude_unless`/`missing_if`/`missing_unless`**
+  only support a single dependent value, where Laravel supports several
+  (`accepted_if:field,v1,v2`).
+- **`exists`/`unique`** don't support the `[field]` bracket syntax for a per-row dynamic ignore
+  id, or an Eloquent model class as the table parameter. Separately, `FastValidatorFactory` has
+  no way to supply a `DatabaseValidatorInterface`, so these rules always pass when used through
+  `FastValidator::make()` today — use the lower-level `SchemaValidator`/`ValidatorEngine` API
+  (which does support `setDatabaseValidator()`) until that's wired up.
 
 ### 🌐 Localization & Custom Messages
 

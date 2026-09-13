@@ -36,9 +36,19 @@ final class DistinctRule implements RuleInterface
             }, $values);
         }
 
-        // Check for duplicates
+        // Check for duplicates. array_unique()'s SORT_REGULAR mode still uses loose
+        // comparison (e.g. 1 == '1'), so "strict" needs a real ===-based pass to match
+        // Laravel's in_array($value, $data, true) semantics.
         if ($this->strict) {
-            $unique = array_unique($values, SORT_REGULAR);
+            $unique = [];
+            foreach ($values as $key => $v) {
+                foreach ($unique as $existing) {
+                    if ($v === $existing) {
+                        continue 2;
+                    }
+                }
+                $unique[$key] = $v;
+            }
         } else {
             $unique = array_unique($values);
         }

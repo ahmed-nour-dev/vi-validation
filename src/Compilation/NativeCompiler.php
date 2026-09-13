@@ -47,6 +47,13 @@ final class NativeCompiler
         $unsupported = [];
 
         foreach ($schema->getFields() as $field) {
+            // exclude*/exclusion marker rules are consumed into CompiledField's exclusion
+            // flags and never appear in getRules(), so compileField() has no way to see
+            // them; inlining this field would silently ignore the exclusion. Refuse instead.
+            if ($field->hasExclusionSemantics()) {
+                $unsupported[] = $field->getName() . ':exclusion-semantics';
+            }
+
             foreach ($field->getRules() as $rule) {
                 if (!$this->isSupported($rule)) {
                     $unsupported[] = $field->getName() . ':' . get_class($rule);
@@ -130,13 +137,47 @@ final class NativeCompiler
 
     /**
      * Generate a unique key for the rules that includes PHP version and compiler version.
-     */
-    /**
+     *
+     * The raw rules array (as passed to SchemaBuilder::setRulesArray()) may contain
+     * Closures (inline rule callbacks) or arbitrary RuleInterface objects, and PHP's
+     * serialize() throws on a Closure rather than silently ignoring it. Since a schema
+     * containing any such rule is never natively compilable anyway (see isSupported()),
+     * the exact key doesn't need to be content-stable for them - it only needs to never
+     * crash the caller (SchemaValidator::validate() calls this on every single request).
+     *
      * @param array<string, mixed> $rules
      */
     public static function generateKey(array $rules): string
     {
-        return sha1(serialize($rules) . PHP_VERSION_ID . self::COMPILER_VERSION);
+        try {
+            $serialized = serialize($rules);
+        } catch (\Throwable) {
+            $serialized = serialize(self::normalizeForSerialization($rules));
+        }
+
+        return sha1($serialized . PHP_VERSION_ID . self::COMPILER_VERSION);
+    }
+
+    private static function normalizeForSerialization(mixed $value): mixed
+    {
+        if ($value instanceof \Closure) {
+            return 'Closure';
+        }
+
+        if (is_array($value)) {
+            return array_map(self::normalizeForSerialization(...), $value);
+        }
+
+        if (is_object($value)) {
+            try {
+                serialize($value);
+                return $value;
+            } catch (\Throwable) {
+                return get_class($value);
+            }
+        }
+
+        return $value;
     }
 
     private function compileField(CompiledField $field): string
@@ -270,8 +311,11 @@ final class NativeCompiler
             \Vi\Validation\Rules\RequiredWithAllRule::class,
             \Vi\Validation\Rules\RequiredWithoutRule::class,
             \Vi\Validation\Rules\RequiredWithoutAllRule::class,
+            \Vi\Validation\Rules\RequiredIfAcceptedRule::class,
             \Vi\Validation\Rules\AcceptedRule::class,
             \Vi\Validation\Rules\AcceptedIfRule::class,
+            \Vi\Validation\Rules\DeclinedRule::class,
+            \Vi\Validation\Rules\DeclinedIfRule::class,
             \Vi\Validation\Rules\FilledRule::class,
             \Vi\Validation\Rules\PresentRule::class,
             \Vi\Validation\Rules\ProhibitedRule::class,

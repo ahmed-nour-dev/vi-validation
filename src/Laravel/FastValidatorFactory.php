@@ -95,10 +95,11 @@ final class FastValidatorFactory
         // Build schema
         $parser = new LaravelRuleParser($this->registry);
         $builder = new SchemaBuilder();
+        $builder->setRulesArray($rules);
 
         foreach ($rules as $field => $definition) {
             $fieldBuilder = $builder->field($field);
-            $parsedRules = $parser->parse($definition);
+            $parsedRules = $parser->parse($definition, (string) $field);
             
             // Check for numeric context
             $isNumeric = false;
