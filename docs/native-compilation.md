@@ -274,3 +274,47 @@ Rotating the secret simply invalidates the existing files; they are regenerated 
 
 Even with a signing key, keep the cache directories outside the web root and writable only by
 the application user, the same as Laravel's own compiled-views directory.
+
+## Diagnostics
+
+`SchemaValidator::diagnostics()`, `FastValidatorWrapper::diagnostics()` and
+`FastValidatorFactory::diagnose($rules)` return a read-only `Diagnostics\SchemaDiagnostics`
+that explains how a schema executes and why:
+
+```php
+echo FastValidator::make($data, $rules)->diagnostics();
+```
+
+```
+Schema 3f9c2a1b7d0e (3 fields, 6 rules)
+Strategy: engine - not natively compilable: role:in
+Artifact: not-compilable
+Compiler 2.0.0, PHP 80419, compiled in 0.061 ms
+  ✓ email: required|email
+  ✗ role: required|in
+      ✗ in: rule does not implement NativeCompilableInterface
+  ✓ nick [sometimes]: nullable|string
+```
+
+`->toArray()` gives the same data in machine-readable form (for logs or a debug toolbar):
+
+| Key | Meaning |
+| :--- | :--- |
+| `schema_hash`, `artifact_key`, `stable`, `unstable_reasons` | the schema's fingerprint (see above) |
+| `field_count`, `rule_count`, `fields[]` | structure; per field: rule names, flags (`sometimes`, `exclude`), `native` and the reason for every unsupported rule |
+| `native_compatible`, `unsupported_rules[]` | whether `NativeCompiler` can inline the whole schema, and why not |
+| `artifact_status`, `artifact_path` | `loaded`, `available`, `will-generate`, `missing`, `not-configured`, `not-compilable` or `unstable-schema` |
+| `strategy`, `strategy_reason` | `native` or `engine`, with a one-line reason |
+| `compiler_version`, `php_version_id`, `compile_time_ms` | versions baked into the artifact key; how long building the schema took |
+
+Diagnostics never generate, load or execute an artifact, and they don't touch the validation
+hot path (nothing is computed until you call them). They contain **no rule parameters** (an
+`in:` list or a `regex:` may be sensitive) and **no validated data**, only field and rule
+names.
+
+Cheap counters are also available:
+
+```php
+$factory->cacheStats();                 // ['hits' => …, 'misses' => …, 'uncacheable' => …]
+NativeArtifactRepository::stats();      // ['generated' => …, 'loaded' => …, 'memory_hits' => …, 'rejected' => …]
+```

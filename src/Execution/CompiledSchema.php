@@ -19,6 +19,8 @@ final class CompiledSchema
 
     private ?SchemaFingerprint $fingerprint = null;
 
+    private ?float $compileTimeMs = null;
+
     /**
      * @param list<CompiledField> $fields
      * @param array<string, mixed> $rulesArray
@@ -58,6 +60,23 @@ final class CompiledSchema
     public function getFields(): array
     {
         return $this->fields;
+    }
+
+    /**
+     * How long building this schema took (rule parsing + field compilation), in ms, when
+     * known. Diagnostic only.
+     */
+    public function getCompileTimeMs(): ?float
+    {
+        return $this->compileTimeMs;
+    }
+
+    /**
+     * @internal Recorded by SchemaBuilder / RuleSetCompiler.
+     */
+    public function recordCompileTime(float $milliseconds): void
+    {
+        $this->compileTimeMs = $milliseconds;
     }
 
     /**

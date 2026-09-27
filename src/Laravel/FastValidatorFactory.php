@@ -29,6 +29,9 @@ final class FastValidatorFactory
 
     private ?ValidatorCompiler $compiler = null;
 
+    /** @var array{hits: int, misses: int, uncacheable: int} */
+    private array $cacheStats = ['hits' => 0, 'misses' => 0, 'uncacheable' => 0];
+
     /**
      * @param array<string, mixed> $config
      * @param RuleRegistry|null $registry
@@ -80,8 +83,12 @@ final class FastValidatorFactory
         if ($this->cache !== null && $cacheKey !== null) {
             $cached = $this->cache->get($cacheKey);
             if ($cached !== null) {
+                $this->cacheStats['hits']++;
                 return $cached;
             }
+            $this->cacheStats['misses']++;
+        } elseif ($this->cache !== null) {
+            $this->cacheStats['uncacheable']++;
         }
 
         $schema = $this->ruleSetCompiler->compile($rules);
@@ -108,6 +115,27 @@ final class FastValidatorFactory
     public function precompile(array $rules): ?string
     {
         return $this->compiler?->writeNativeFor($this->compile($rules));
+    }
+
+    /**
+     * Schema cache counters for this factory: hits, misses, and rule sets that can't be cached
+     * (closures / non-serializable rule objects).
+     *
+     * @return array{hits: int, misses: int, uncacheable: int}
+     */
+    public function cacheStats(): array
+    {
+        return $this->cacheStats;
+    }
+
+    /**
+     * Describe how a rules array will execute (see SchemaValidator::diagnostics()).
+     *
+     * @param array<string, mixed> $rules
+     */
+    public function diagnose(array $rules): \Vi\Validation\Diagnostics\SchemaDiagnostics
+    {
+        return \Vi\Validation\Diagnostics\SchemaInspector::inspect($this->compile($rules), $this->compiler);
     }
 
     /**

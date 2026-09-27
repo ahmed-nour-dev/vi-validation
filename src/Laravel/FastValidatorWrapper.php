@@ -78,6 +78,14 @@ final class FastValidatorWrapper implements LaravelValidatorContract
         return $this->validator;
     }
 
+    /**
+     * @see SchemaValidator::diagnostics()
+     */
+    public function diagnostics(): \Vi\Validation\Diagnostics\SchemaDiagnostics
+    {
+        return $this->validator->diagnostics();
+    }
+
     public function fails(): bool
     {
         return !$this->passes();

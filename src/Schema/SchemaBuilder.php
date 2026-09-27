@@ -33,6 +33,10 @@ final class SchemaBuilder
 
     public function compile(): CompiledSchema
     {
-        return CompiledSchema::fromFieldDefinitions($this->fields, $this->rulesArray);
+        $start = hrtime(true);
+        $schema = CompiledSchema::fromFieldDefinitions($this->fields, $this->rulesArray);
+        $schema->recordCompileTime((hrtime(true) - $start) / 1e6);
+
+        return $schema;
     }
 }
