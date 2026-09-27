@@ -149,7 +149,7 @@ abstract class ParityTestCase extends TestCase
         $this->nativeTempDirs[] = $cachePath;
 
         $compiler = new ValidatorCompiler(null, false, $cachePath);
-        $compiler->writeNative(NativeCompiler::generateKey($schema->getRulesArray()), $schema);
+        $compiler->writeNativeFor($schema);
 
         $schemaValidator = new SchemaValidator($schema, new ValidatorEngine(), $compiler);
 

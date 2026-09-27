@@ -140,6 +140,11 @@ final class NativeCompiler
      * the exact key doesn't need to be content-stable for them - it only needs to never
      * crash the caller (SchemaValidator::validate() calls this on every single request).
      *
+     * @deprecated Keys derived from the raw rules array depend on the input format (and are
+     *             identical for every fluent schema, whose rules array is empty). Native
+     *             artifacts are now keyed by CompiledSchema::fingerprint()->artifactKey; use
+     *             ValidatorCompiler::nativeKeyFor() instead.
+     *
      * @param array<string, mixed> $rules
      */
     public static function generateKey(array $rules): string

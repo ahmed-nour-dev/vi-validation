@@ -73,8 +73,7 @@ final class SchemaValidator
         }
 
         // Check for native precompiled validator (highest speed)
-        $nativeKey = \Vi\Validation\Compilation\NativeCompiler::generateKey($this->schema->getRulesArray());
-        $nativePath = $this->compiler->getNativePath($nativeKey);
+        $nativePath = $this->compiler->getNativePath($this->compiler->nativeKeyFor($this->schema));
 
         if (file_exists($nativePath)) {
             $closure = require $nativePath;

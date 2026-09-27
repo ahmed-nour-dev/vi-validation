@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vi\Validation\Execution;
 
+use Vi\Validation\Compilation\SchemaFingerprint;
 use Vi\Validation\Schema\FieldDefinition;
 
 final class CompiledSchema
@@ -15,6 +16,8 @@ final class CompiledSchema
     private array $rulesArray;
 
     private ?ValidatorEngine $engine = null;
+
+    private ?SchemaFingerprint $fingerprint = null;
 
     /**
      * @param list<CompiledField> $fields
@@ -55,6 +58,15 @@ final class CompiledSchema
     public function getFields(): array
     {
         return $this->fields;
+    }
+
+    /**
+     * Deterministic identity of this schema's validation semantics, computed once and
+     * memoized. See SchemaFingerprint for what is (and isn't) part of it.
+     */
+    public function fingerprint(): SchemaFingerprint
+    {
+        return $this->fingerprint ??= SchemaFingerprint::of($this);
     }
 
     /**

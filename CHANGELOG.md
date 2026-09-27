@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SchemaValidator::firstFailureWithIndex()` (and `FastValidatorWrapper::firstFailureWithIndex()`)
   returning a `ValidationFailure` value object carrying the failing row's zero-based `index`, the
   source iterable's own `key`, and its `ValidationResult` (#12).
+- Deterministic schema fingerprints: `CompiledSchema::fingerprint()` returns a
+  `SchemaFingerprint` (`schemaHash`, `artifactKey`, `stable`) computed from the compiled
+  schema rather than its input format. Native artifacts are now keyed by it via
+  `ValidatorCompiler::nativeKeyFor()` / `writeNativeFor()` (#19).
+
+### Fixed
+- All fluent-built schemas shared a single native artifact key (their raw rules array is
+  empty), so one schema's native closure could be used for another (#19).
+- `FastValidatorFactory`'s schema cache keyed closures and rule objects by
+  `spl_object_id()`, which PHP reuses, so a later call could get a schema built with a
+  different closure. Such rule sets are no longer cached (#19).
+
+### Deprecated
+- `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).
 
 ## [0.1.0] - 2026-02-04
 

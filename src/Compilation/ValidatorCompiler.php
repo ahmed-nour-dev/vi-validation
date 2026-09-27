@@ -32,18 +32,6 @@ final class ValidatorCompiler
      */
     public function compile(string $key, array $rules, callable $compiler): CompiledSchema
     {
-        // For native compilation, we use a different key based on content + environment
-        $nativeKey = NativeCompiler::generateKey($rules);
-        
-        // Check native cache first (this is the fastest path)
-        if ($this->cachePath !== null) {
-            $nativePath = $this->getNativePath($nativeKey);
-            if (file_exists($nativePath)) {
-                // We still need the schema object if we are not in a full-native environment
-                // but for now let's focus on the generation
-            }
-        }
-
         // Check object cache
         if ($this->cache !== null) {
             $cached = $this->cache->get($key);
@@ -60,9 +48,10 @@ final class ValidatorCompiler
             $this->cache->put($key, $schema);
         }
 
-        // Native Compilation Path
+        // Native Compilation Path - keyed by the schema's canonical fingerprint, never by the
+        // user's input format, so equivalent schemas share one artifact.
         if ($this->cachePath !== null) {
-            $this->writeNative($nativeKey, $schema);
+            $this->writeNativeFor($schema);
         }
 
         // Legacy precompile to file if enabled
@@ -71,6 +60,37 @@ final class ValidatorCompiler
         }
 
         return $schema;
+    }
+
+    /**
+     * The key a schema's native artifact is stored under: its fingerprint's artifactKey,
+     * which already folds in the compiler version and PHP_VERSION_ID.
+     */
+    public function nativeKeyFor(CompiledSchema $schema): string
+    {
+        return $schema->fingerprint()->artifactKey;
+    }
+
+    /**
+     * Generate and persist the native artifact for a schema, keyed by its fingerprint.
+     *
+     * Returns the artifact path, or null when nothing was (or could be) written: no cache
+     * path configured, the schema isn't fully native-compilable, or its fingerprint is
+     * unstable (it contains closures etc.), in which case a persisted artifact could be
+     * picked up by an unrelated schema in another process, so it is never written.
+     */
+    public function writeNativeFor(CompiledSchema $schema): ?string
+    {
+        if ($this->cachePath === null || !$schema->fingerprint()->stable) {
+            return null;
+        }
+
+        $key = $this->nativeKeyFor($schema);
+        $this->writeNative($key, $schema);
+
+        $path = $this->getNativePath($key);
+
+        return file_exists($path) ? $path : null;
     }
 
     /**
