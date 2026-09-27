@@ -49,8 +49,16 @@ final class DistinctRule implements RuleInterface
                 }
                 $unique[$key] = $v;
             }
-        } else {
+        } elseif ($this->allScalar($values)) {
             $unique = array_unique($values);
+        } else {
+            // array_unique() string-casts elements ("Array to string conversion" for nested
+            // arrays). Compare scalars exactly as it would (by string) and nested arrays/objects
+            // by their serialized form.
+            $unique = [];
+            foreach ($values as $v) {
+                $unique[is_scalar($v) || $v === null ? 's:' . $v : 'o:' . serialize($v)] = true;
+            }
         }
 
         if (count($unique) !== count($values)) {
@@ -58,5 +66,19 @@ final class DistinctRule implements RuleInterface
         }
 
         return null;
+    }
+
+    /**
+     * @param array<array-key, mixed> $values
+     */
+    private function allScalar(array $values): bool
+    {
+        foreach ($values as $v) {
+            if ($v !== null && !is_scalar($v)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

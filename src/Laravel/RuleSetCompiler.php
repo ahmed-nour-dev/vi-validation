@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Vi\Validation\Laravel;
 
 use Vi\Validation\Execution\CompiledSchema;
+use Vi\Validation\Rules\ArrayRule;
+use Vi\Validation\Rules\InRule;
 use Vi\Validation\Rules\IntegerTypeRule;
+use Vi\Validation\Rules\NotInRule;
 use Vi\Validation\Rules\NumericAwareInterface;
 use Vi\Validation\Rules\NumericRule;
 use Vi\Validation\Rules\RuleRegistry;
@@ -48,6 +51,22 @@ final class RuleSetCompiler
                 if ($rule instanceof IntegerTypeRule || $rule instanceof NumericRule) {
                     $isNumeric = true;
                     break;
+                }
+            }
+
+            // Laravel's `in`/`not_in` compare each element when the field is also `array`.
+            $hasArrayRule = false;
+            foreach ($parsedRules as $rule) {
+                if ($rule instanceof ArrayRule) {
+                    $hasArrayRule = true;
+                    break;
+                }
+            }
+            if ($hasArrayRule) {
+                foreach ($parsedRules as $rule) {
+                    if ($rule instanceof InRule || $rule instanceof NotInRule) {
+                        $rule->setArrayContext(true);
+                    }
                 }
             }
 

@@ -96,6 +96,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ignores double/foreign releases and exposes `getCheckedOutCount()`.
 - The bundled Arabic catalog (and any `resources/lang/{locale}`) was never loaded unless a
   lang path was configured, so `localization.locale = 'ar'` produced English messages (#10).
+- Bugs found by the property tests (#14):
+  - **Blank strings:** Laravel treats strings that are empty after `trim()` as empty.
+    `required`, `filled` and `required_*` accepted `"   "` / `"\t"`, `prohibited*` rejected
+    them, and non-implicit rules (`email`, `integer`, `min`, ...) failed them instead of skipping.
+  - Dot paths deeper than two segments (`a.b.c`) were looked up as `$data['a']['b.c']` by the
+    engine (always missing) while the native path walked every segment; both now use Laravel
+    dot notation, including conditional rules referencing such paths.
+  - Natively compiled `sometimes` on nested fields checked for a literal `'p.q'` key.
+  - `in` / `not_in` raised "Array to string conversion" for array values; they now follow
+    Laravel (element-wise with an `array` rule on the field, `not_in` defined as `!in`).
+  - Date rules threw `ValueError` for strings containing NUL bytes; `date` also accepted
+    values `strtotime()` parses but that aren't calendar dates (e.g. `"x"`), unlike Laravel.
+  - `distinct` raised "Array to string conversion" for arrays containing arrays.
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).

@@ -651,6 +651,25 @@ composer install
 ./vendor/bin/phpunit
 ```
 
+**Property-based / fuzz tests** (`tests/Unit/Property/`, group `property`) generate random schemas and adversarial values: numeric strings, `INF`/`NAN`, whitespace, NUL bytes, Unicode, nested arrays, deep dot paths. They check these invariants:
+
+- the native and engine paths return identical errors;
+- a reused validator equals a fresh one;
+- validation never mutates the input, and `validated()` never mutates `data()`;
+- `max_errors` always bounds the error count, in every error mode;
+- streaming agrees with one-at-a-time validation;
+- no rule throws on input that Laravel itself accepts without throwing.
+
+They run with a random seed on every `phpunit` run. A failure prints the seed and the exact command to replay it:
+
+```bash
+./vendor/bin/phpunit --group property                               # random seed
+VI_FUZZ_SEED=123456 ./vendor/bin/phpunit --group property           # replay a failure
+VI_FUZZ_ITERATIONS=5000 ./vendor/bin/phpunit --group property       # longer local run
+```
+
+Every bug they find gets a permanent regression test in `tests/Unit/Property/FuzzRegressionTest.php`.
+
 ---
 
 ## 📝 License

@@ -48,7 +48,7 @@ final class ProhibitedUnlessRule implements RuleInterface
             return true;
         }
 
-        if (is_string($value) && $value === '') {
+        if (is_string($value) && \Vi\Validation\Execution\Emptiness::isBlankString($value)) {
             return true;
         }
 

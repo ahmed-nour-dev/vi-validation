@@ -23,7 +23,7 @@ final class RequiredIfAcceptedRule implements RuleInterface
         $otherValue = $context->getValue($this->otherField);
 
         if ($otherValue !== null && in_array($otherValue, self::ACCEPTABLE, true)) {
-            if ($value === null || $value === '' || (is_array($value) && count($value) === 0)) {
+            if (\Vi\Validation\Execution\Emptiness::isEmpty($value)) {
                 return [
                     'rule' => 'required_if_accepted',
                     'parameters' => [

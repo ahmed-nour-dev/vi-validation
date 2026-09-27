@@ -56,7 +56,7 @@ final class AfterOrEqualRule implements RuleInterface
         if (is_string($value)) {
             try {
                 return new DateTimeImmutable($value);
-            } catch (\Exception) {
+            } catch (\Exception | \ValueError) { // ValueError: e.g. NUL bytes in the string
                 return null;
             }
         }
