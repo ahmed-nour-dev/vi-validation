@@ -9,6 +9,7 @@ use Vi\Validation\Cache\FileSchemaCache;
 use Vi\Validation\Cache\SchemaCacheInterface;
 use Vi\Validation\Compilation\ValidatorCompiler;
 use Vi\Validation\Execution\CompiledSchema;
+use Vi\Validation\Execution\ErrorMode;
 use Vi\Validation\Execution\ValidatorEngine;
 use Vi\Validation\Messages\MessageResolver;
 use Vi\Validation\Messages\Translator;
@@ -200,9 +201,14 @@ final class FastValidatorFactory
 
         // The same resolver goes to the engine *and* the SchemaValidator (native path), so
         // custom messages/attributes apply whichever path executes.
+        $errorMode = $this->config['performance']['error_mode'] ?? ErrorMode::All;
+        if (!$errorMode instanceof ErrorMode) {
+            $errorMode = ErrorMode::from((string) $errorMode);
+        }
+
         return new SchemaValidator(
             $schema,
-            new ValidatorEngine($messageResolver, $failFast, $maxErrors),
+            new ValidatorEngine($messageResolver, $failFast, $maxErrors, $errorMode),
             $this->compiler,
             $messageResolver
         );

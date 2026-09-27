@@ -80,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ChunkedValidator::streamFailures()` buffered up to `$chunkSize` rows before yielding the
   first failure, and `countFailures()` materialized every chunk's results; both now stream
   row by row with no buffering (#17).
+- Native validators ignored `fail_fast` / `max_errors` / `stopOnFirstFailure()` and always
+  returned every error; the engine's error policy is now applied to native results, so both
+  paths return identical errors (#13).
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).
