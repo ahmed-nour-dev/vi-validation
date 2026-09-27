@@ -49,19 +49,11 @@ final class ValidationContext
 
     public function getValue(string $field): mixed
     {
-        // Support simple fields and depth-2 nested fields using dot notation: parent.child
         if (strpos($field, '.') === false) {
             return $this->data[$field] ?? null;
         }
 
-        [$first, $second] = explode('.', $field, 2);
-
-        $level1 = $this->data[$first] ?? null;
-        if (!is_array($level1)) {
-            return null;
-        }
-
-        return $level1[$second] ?? null;
+        return DataHelper::get($this->data, $field);
     }
 
     public function hasValue(string $field): bool
@@ -70,13 +62,7 @@ final class ValidationContext
             return array_key_exists($field, $this->data);
         }
 
-        [$first, $second] = explode('.', $field, 2);
-
-        if (!array_key_exists($first, $this->data) || !is_array($this->data[$first])) {
-            return false;
-        }
-
-        return array_key_exists($second, $this->data[$first]);
+        return DataHelper::has($this->data, $field);
     }
 
     /**

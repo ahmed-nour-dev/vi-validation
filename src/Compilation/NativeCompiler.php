@@ -200,12 +200,25 @@ final class NativeCompiler
             . ' | rules: ' . self::commentSafe(implode('|', $rulesNames)) . " ---\n";
         $code .= "    {$varName} = " . $this->generateGetValueCode($field) . ";\n";
 
+        // Emptiness (Laravel semantics) is evaluated once per field, not once per rule.
+        $emptyVar = '$empty_' . $index;
+        foreach ($rules as $rule) {
+            if ($rule instanceof NativeCompilableInterface && !$rule->isImplicitForNative()) {
+                $code .= "    {$emptyVar} = " . \Vi\Validation\Execution\Emptiness::nativeExpression($varName) . ";\n";
+                break;
+            }
+        }
+
         $indent = "    ";
         $suffix = "";
 
         // Handle sometimes: skip if key doesn't exist
         if ($field->isSometimes()) {
-            $code .= "{$indent}if (array_key_exists({$nameLiteral}, \$data)) {\n";
+            // Same presence semantics as ValidationContext::hasValue() (dot-notation paths).
+            $presence = strpos($name, '.') === false
+                ? "array_key_exists({$nameLiteral}, \$data)"
+                : "\\Vi\\Validation\\Execution\\DataHelper::has(\$data, {$nameLiteral})";
+            $code .= "{$indent}if ({$presence}) {\n";
             $indent .= "    ";
             $suffix = substr($indent, 0, -4) . "}\n" . $suffix;
         }
@@ -218,7 +231,7 @@ final class NativeCompiler
         }
 
         foreach ($rules as $rule) {
-            $inlined = $this->inlineRule($rule, $name, $varName, $indent);
+            $inlined = $this->inlineRule($rule, $name, $varName, $indent, $emptyVar);
             if ($inlined === null) {
                 // canCompile()/findUnsupportedRules() should have caught this
                 // before compile() ever reached code generation.
@@ -269,7 +282,7 @@ final class NativeCompiler
         return "\\Vi\\Validation\\Execution\\DataHelper::get(\$data, " . var_export($name, true) . ")";
     }
 
-    private function inlineRule(RuleInterface $rule, string $fieldName, string $valName, string $indent): ?string
+    private function inlineRule(RuleInterface $rule, string $fieldName, string $valName, string $indent, string $emptyVar): ?string
     {
         if (!$rule instanceof NativeCompilableInterface) {
             return null;
@@ -282,8 +295,7 @@ final class NativeCompiler
         $suffix = "";
 
         if (!$isImplicit) {
-            $prefix = "{$indent}if (!(\$val === null || (is_string(\$val) && \$val === '') || (is_array(\$val) && \$val === []))) {\n";
-            $prefix = str_replace("\$val", $valName, $prefix);
+            $prefix = "{$indent}if (!{$emptyVar}) {\n";
             $indent .= "    ";
             $suffix = substr($indent, 0, -4) . "}\n";
         }

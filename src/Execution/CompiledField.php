@@ -200,11 +200,14 @@ final class CompiledField
             return $data[$this->name] ?? null;
         }
 
-        $parent = $data[$this->parentField] ?? null;
-        if (!is_array($parent)) {
-            return null;
+        // Fast path for the common "parent.child" case; deeper paths walk every segment
+        // (Laravel dot notation). Previously "a.b.c" read $data['a']['b.c'].
+        if (strpos((string) $this->childField, '.') === false) {
+            $parent = $data[$this->parentField] ?? null;
+
+            return is_array($parent) ? ($parent[$this->childField] ?? null) : null;
         }
 
-        return $parent[$this->childField] ?? null;
+        return DataHelper::get($data, $this->name);
     }
 }

@@ -16,7 +16,7 @@ final class RequiredRule implements RuleInterface, NativeCompilableInterface
             return ['rule' => 'required'];
         }
 
-        if (is_string($value) && $value === '') {
+        if (is_string($value) && \Vi\Validation\Execution\Emptiness::isBlankString($value)) {
             return ['rule' => 'required'];
         }
 
@@ -30,7 +30,7 @@ final class RequiredRule implements RuleInterface, NativeCompilableInterface
     public function compileNative(NativeCompilationContext $context): string
     {
         $v = $context->valName;
-        $condition = "{$v} === null || (is_string({$v}) && {$v} === '') || (is_array({$v}) && {$v} === [])";
+        $condition = \Vi\Validation\Execution\Emptiness::nativeExpression($v);
 
         return $context->emitError($condition, 'required');
     }

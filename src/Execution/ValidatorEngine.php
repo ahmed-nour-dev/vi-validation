@@ -88,7 +88,9 @@ final class ValidatorEngine
                     continue;
                 }
 
-                $isEmpty = ($value === null || (is_string($value) && $value === '') || (is_array($value) && $value === []));
+                // Laravel semantics: null, [], and strings that are empty after trim() are "empty".
+                $isEmpty = $value === null || $value === [] || (is_string($value) && ($value === ''
+                    || (isset(Emptiness::BLANK_FIRST[$value[0]]) && Emptiness::isBlankString($value))));
 
                 foreach ($rules as $rule) {
                     // Non-implicit rules should skip if the value is "empty"

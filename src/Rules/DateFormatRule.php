@@ -25,6 +25,10 @@ final class DateFormatRule implements RuleInterface
         }
 
         $value = (string) $value;
+        if (str_contains($value, "\0")) {
+            // createFromFormat() throws ValueError on NUL bytes; never a valid date.
+            return ['rule' => 'date_format', 'parameters' => [0 => $this->format, 'format' => $this->format]];
+        }
         $date = DateTimeImmutable::createFromFormat($this->format, $value);
 
         if ($date === false || $date->format($this->format) !== $value) {

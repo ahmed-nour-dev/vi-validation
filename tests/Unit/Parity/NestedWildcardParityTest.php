@@ -106,24 +106,18 @@ class NestedWildcardParityTest extends ParityTestCase
     }
 
     /**
-     * Known, unfixed gap: dot-nesting only supports exactly 2 segments. A 3rd-level
-     * attribute name is split into parent="a", child="b.c" and then looked up as the
-     * literal array key "b.c" (which never exists), so it behaves identically to the
-     * wildcard case above - always null.
+     * Regression (found by the property tests, #14): "a.b.c" used to be split into
+     * parent="a", child="b.c" and looked up as the literal key "b.c". Paths of any depth now
+     * resolve like Laravel's dot notation, on both the engine and native paths.
      */
-    public function testDepth3NestedRequiredAlwaysFailsEvenWhenPresent(): void
+    public function testDepth3NestedPathsResolveLikeLaravel(): void
     {
-        $data = ['a' => ['b' => ['c' => 'present']]];
-
-        $result = $this->assertDivergence(
-            ['a.b.c' => 'required|string'],
-            $data,
-            'Depth-3+ dot nesting is not implemented: CompiledField splits on the first dot'
-                . ' only, so "a.b.c" looks up the literal key "b.c" inside $data[\'a\'], which'
-                . ' never exists, even though $data[\'a\'][\'b\'][\'c\'] is actually present.'
-        );
-
-        self::assertFalse($result['laravel_fails'], 'Laravel correctly resolves the 3-level path and passes.');
-        self::assertTrue($result['fast_fails'], 'Fast cannot resolve past 2 levels and always fails required.');
+        $this->assertParity(['a.b.c' => 'required|string'], ['a' => ['b' => ['c' => 'present']]]);
+        $this->assertParity(['a.b.c' => 'required|string'], ['a' => ['b' => ['c' => 5]]]);
+        $this->assertParity(['a.b.c' => 'required|string'], ['a' => ['b' => []]]);
+        $this->assertParity(['a.b.c.d' => 'required|integer'], ['a' => ['b' => ['c' => ['d' => 7]]]]);
+        $this->assertParity(['a.b.c' => 'sometimes|required|string'], ['a' => ['b' => ['c' => '']]]);
+        $this->assertParity(['a.b.c' => 'sometimes|required|string'], ['a' => ['b' => []]]);
+        $this->assertParity(['x' => 'required_with:a.b.c'], ['a' => ['b' => ['c' => 1]]]);
     }
 }

@@ -20,7 +20,7 @@ final class FilledRule implements RuleInterface
         }
 
         // If the field is present but empty, fail validation
-        if (is_string($value) && $value === '') {
+        if (is_string($value) && \Vi\Validation\Execution\Emptiness::isBlankString($value)) {
             return ['rule' => 'filled'];
         }
 
