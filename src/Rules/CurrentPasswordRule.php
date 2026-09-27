@@ -17,8 +17,9 @@ final class CurrentPasswordRule implements RuleInterface
 
         $hasher = $context->getPasswordHasher();
 
+        // Fail closed, like Laravel (a guest never passes current_password).
         if ($hasher === null) {
-            return null;
+            return ['rule' => 'current_password'];
         }
 
         if (!$hasher->check($value)) {

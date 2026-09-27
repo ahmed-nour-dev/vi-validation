@@ -26,7 +26,23 @@ final class FastValidationServiceProvider extends ServiceProvider
             $config['security']['signing_key'] = ($config['security']['signing_key'] ?? null)
                 ?: (config('app.key') ?: null);
 
-            return new FastValidatorFactory($config, $app->make(RuleRegistry::class));
+            $factory = new FastValidatorFactory($config, $app->make(RuleRegistry::class));
+
+            // exists/unique use Laravel's presence verifier and current_password uses its auth +
+            // hasher, resolved lazily on first use - without them those rules fail closed.
+            if ($app->bound('validation.presence') || $app->bound('db')) {
+                $factory->setDatabaseValidator(new PresenceVerifierDatabaseValidator(
+                    static fn () => $app->make('validation.presence')
+                ));
+            }
+            if ($app->bound('auth') && $app->bound('hash')) {
+                $factory->setPasswordHasher(new AuthPasswordHasher(
+                    static fn () => $app->make('auth'),
+                    static fn () => $app->make('hash')
+                ));
+            }
+
+            return $factory;
         });
 
         $this->app->alias(FastValidatorFactory::class, 'fast.validator');

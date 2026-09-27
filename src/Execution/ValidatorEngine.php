@@ -258,6 +258,10 @@ final class ValidatorEngine
 
     private function isImplicitRule(RuleInterface $rule): bool
     {
+        if ($rule instanceof \Vi\Validation\Laravel\LaravelRuleAdapter) {
+            return $rule->isImplicit();
+        }
+
         $class = get_class($rule);
         return in_array($class, [
             \Vi\Validation\Rules\RequiredRule::class,

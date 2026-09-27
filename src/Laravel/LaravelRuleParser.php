@@ -22,7 +22,8 @@ final class LaravelRuleParser
     }
 
     /**
-     * @param string|array<int, string|Closure|RuleInterface> $definition
+     * @param string|array<int, mixed> $definition Rule strings, closures, RuleInterface instances
+     *        or Laravel rule objects (ValidationRule / Rule / InvokableRule / Stringable rules)
      * @return list<RuleInterface>
      */
     public function parse(string|array $definition, string $field = ''): array
@@ -41,6 +42,23 @@ final class LaravelRuleParser
             // Handle RuleInterface instances directly
             if ($part instanceof RuleInterface) {
                 $rules[] = $part;
+                continue;
+            }
+
+            // Laravel rule objects: ValidationRule / Rule / InvokableRule implementations
+            // (custom rules, Password, File, Enum, ...) run through an adapter.
+            if (is_object($part) && LaravelRuleAdapter::supports($part)) {
+                $rules[] = new LaravelRuleAdapter($part);
+                continue;
+            }
+
+            // Stringable built-in rule objects (Rule::in(), Rule::unique(), Rule::requiredIf(),
+            // Rule::dimensions(), ...) are defined by their rule-string form, as in Laravel.
+            if ($part instanceof \Stringable) {
+                $stringForm = (string) $part;
+                if ($stringForm !== '') {
+                    array_push($rules, ...$this->parse([$stringForm], $field));
+                }
                 continue;
             }
 
@@ -81,7 +99,20 @@ final class LaravelRuleParser
     {
         $segments = explode(':', $rule, 2);
         $name = $segments[0];
-        $params = isset($segments[1]) ? explode(',', $segments[1]) : [];
+
+        if (!isset($segments[1])) {
+            return [$name, []];
+        }
+
+        // Laravel's ValidationRuleParser::parseParameters(): a regex is a single parameter
+        // (it may contain commas, e.g. /^a{1,3}$/); everything else is CSV, so quoted values
+        // like Rule::in()'s `in:"a,b","c"` keep their commas.
+        if (in_array(strtolower($name), ['regex', 'not_regex', 'notregex'], true)) {
+            return [$name, [$segments[1]]];
+        }
+
+        /** @var list<string> $params */
+        $params = array_map('strval', str_getcsv($segments[1], ',', '"', '\\'));
 
         return [$name, $params];
     }
@@ -150,6 +181,9 @@ final class LaravelRuleParser
             'dimensions' => new $class($this->parseAssocParams($params)),
 
             'extensions', 'missing_with', 'missing_with_all', 'prohibits' => new $class(...$params),
+
+            'ipv4' => new $class('v4'),
+            'ipv6' => new $class('v6'),
 
             // Default: Simple instantiation for rules without params
             default => new $class(),

@@ -39,7 +39,12 @@ final class UniqueRule implements RuleInterface
         $dbValidator = $context->getDatabaseValidator();
 
         if ($dbValidator === null) {
-            return null;
+            // Fail closed, like Laravel ("Presence verifier has not been set."): silently
+            // passing would let duplicate/unknown values through.
+            throw new \RuntimeException(
+                'The [unique] rule requires a database validator. Call setDatabaseValidator() on the '
+                . 'ValidatorEngine (FastValidatorFactory wires Laravel\'s presence verifier automatically).'
+            );
         }
 
         if (!$dbValidator->unique($this->table, $this->column, $value, $this->ignoreId, $this->idColumn, $this->extraConstraints, $this->connection)) {
