@@ -28,7 +28,7 @@ final class RequiredIfRule implements RuleInterface
         $otherValue = $context->getValue($this->otherField);
 
         // Check if the other field's value is in the specified values
-        if (!in_array($otherValue, $this->values, true)) {
+        if (!DependentValues::matches($otherValue, $this->values)) {
             // Other field doesn't match, so this field is not required
             return null;
         }
@@ -39,7 +39,7 @@ final class RequiredIfRule implements RuleInterface
                 'rule' => 'required_if',
                 'params' => [
                     'other' => $this->otherField,
-                    'values' => implode(', ', $this->values),
+                    'values' => DependentValues::describe($this->values),
                 ],
             ];
         }

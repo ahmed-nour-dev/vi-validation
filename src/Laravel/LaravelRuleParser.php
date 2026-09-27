@@ -168,7 +168,7 @@ final class LaravelRuleParser
 
             // Dependent-value conditional rules (single-value only; see LaravelRuleParser docs)
             'accepted_if', 'declined_if', 'exclude_if', 'exclude_unless', 'missing_if', 'missing_unless' =>
-                isset($params[0]) ? new $class($params[0], $params[1] ?? null) : null,
+                isset($params[0], $params[1]) ? new $class($params[0], array_slice($params, 1)) : null,
 
             'exclude_with', 'exclude_without', 'required_if_accepted' => isset($params[0]) ? new $class($params[0]) : null,
 
@@ -181,6 +181,14 @@ final class LaravelRuleParser
             'dimensions' => new $class($this->parseAssocParams($params)),
 
             'extensions', 'missing_with', 'missing_with_all', 'prohibits' => new $class(...$params),
+
+            // Rules added for full Laravel coverage.
+            'max_digits', 'min_digits' => isset($params[0]) && $params[0] !== '' ? new $class((int) $params[0]) : null,
+            'contains' => $params !== [] ? new $class($params) : null,
+            'in_array' => isset($params[0]) && $params[0] !== '' ? new $class($params[0]) : null,
+            'present_if', 'present_unless' => isset($params[0], $params[1]) ? new $class($params[0], array_slice($params, 1)) : null,
+            'present_with', 'present_with_all' => $params !== [] ? new $class($params) : null,
+            'prohibited_if_accepted', 'prohibited_if_declined', 'required_if_declined' => isset($params[0]) && $params[0] !== '' ? new $class($params[0]) : null,
 
             'ipv4' => new $class('v4'),
             'ipv6' => new $class('v6'),

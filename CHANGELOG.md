@@ -47,6 +47,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FastValidatorWrapper`) and `ChunkedValidator::streamFailures()`, yielding the source's own
   keys; streaming guarantees documented; `tests/benchmark_streaming.php` publishes memory
   alongside throughput for 10k/100k/1M rows (#17).
+- Configurable error collection for large imports: `ErrorMode` (`All`, `FirstPerField`,
+  `FirstPerRow`, `CountOnly`) via `SchemaValidator::setErrorMode()`, the `ValidatorEngine`
+  constructor or `performance.error_mode`; `SchemaValidator::report()` returning a
+  `ValidationReport` (all rows counted, bounded failure sample, per-field counts, streaming
+  `onFailure` sink); `ValidationResult::errorCount()`, `errorCountsByField()`,
+  `failedFields()`, `isCountOnly()`; `tests/benchmark_error_modes.php` (#13).
+- Seeded property-based / fuzz test suite (`tests/Unit/Property/`, group `property`,
+  `VI_FUZZ_SEED` / `VI_FUZZ_ITERATIONS`) covering native-vs-engine equivalence, validator
+  reuse, input immutability, `max_errors` bounds, streaming equivalence and "no exception
+  unless Laravel throws", plus `FuzzRegressionTest` for every bug it found (#14).
+- Complete Laravel rule coverage: `contains`, `hex_color`, `in_array`, `max_digits`,
+  `min_digits`, `present_if`, `present_unless`, `present_with`, `present_with_all`,
+  `prohibited_if_accepted`, `prohibited_if_declined` and `required_if_declined` (with
+  English/Arabic messages), and multiple dependent values for `accepted_if`, `declined_if`,
+  `exclude_if`, `exclude_unless`, `missing_if` and `missing_unless` (#11).
+- Complete, enforced rule compatibility matrix: `resources/compatibility-matrix.json` gains
+  `engine`, `dependencies` and `laravel_since` per rule and is rendered to `docs/rules.md`
+  (`php tests/generate_rule_matrix.php`). CI checks that every registry rule and every rule
+  the installed Laravel defines is listed, `engine` matches the registry, `native_compilable`
+  matches `NativeCompilableInterface`, the README's Supported Rules table matches, and
+  `docs/rules.md` is current (#11).
+- Laravel rule objects (`Rule::in()`, `Rule::unique()`, custom `ValidationRule` /
+  `InvokableRule` / legacy `Rule` classes) via `Laravel\LaravelRuleAdapter`;
+  `FastValidatorFactory::setDatabaseValidator()` / `setPasswordHasher()` (#11).
+- `sometimes` is a native-compilable marker, like `nullable`/`bail` (#11).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is
@@ -123,6 +148,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     without a database validator they throw instead of passing.
   - `current_password` passed whenever no hasher was configured. It is now backed by Laravel's
     auth + hasher (`AuthPasswordHasher`) and fails closed.
+  - `required_if` / `required_unless` compared the other field strictly against the string
+    parameters, so typed input never matched (e.g. `required_if:type,1` with `type: 1`, or
+    `required_if:active,true` with `active: true`). All `*_if` / `*_unless` rules now use
+    Laravel's dependent-value matching.
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).
