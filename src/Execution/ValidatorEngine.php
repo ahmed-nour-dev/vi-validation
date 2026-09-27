@@ -61,60 +61,70 @@ final class ValidatorEngine
         $firstPerField = $this->errorMode === ErrorMode::FirstPerField;
         $excludedFields = [];
 
-        foreach ($schema->getFields() as $field) {
-            if ($this->shouldStopValidation($errors)) {
-                break;
-            }
+        try {
+            foreach ($schema->getFields() as $field) {
+                if ($this->shouldStopValidation($errors)) {
+                    break;
+                }
 
-            $name = $field->getName();
+                $name = $field->getName();
 
-            // Handle exclusion rules
-            if ($field->shouldExclude($context)) {
-                $excludedFields[] = $name;
-                continue;
-            }
-
-            // Handle 'sometimes' rule: skip if field is not present in data
-            if ($field->isSometimes() && !$context->hasValue($name)) {
-                continue;
-            }
-
-            $value = $field->getValue($data);
-            $rules = $field->getRules();
-            $isNullable = $field->isNullable();
-
-            if ($value === null && $isNullable) {
-                continue;
-            }
-
-            $isEmpty = ($value === null || (is_string($value) && $value === '') || (is_array($value) && $value === []));
-
-            foreach ($rules as $rule) {
-                // Non-implicit rules should skip if the value is "empty"
-                if ($isEmpty && !$this->isImplicitRule($rule)) {
+                // Handle exclusion rules
+                if ($field->shouldExclude($context)) {
+                    $excludedFields[] = $name;
                     continue;
                 }
 
-                if ($this->applyRule($rule, $name, $value, $context)) {
-                    // Handle 'bail' rule (or ErrorMode::FirstPerField): stop validating this
-                    // field after its first failure
-                    if ($firstPerField || $field->isBail()) {
-                        break;
+                // Handle 'sometimes' rule: skip if field is not present in data
+                if ($field->isSometimes() && !$context->hasValue($name)) {
+                    continue;
+                }
+
+                $value = $field->getValue($data);
+                $rules = $field->getRules();
+                $isNullable = $field->isNullable();
+
+                if ($value === null && $isNullable) {
+                    continue;
+                }
+
+                $isEmpty = ($value === null || (is_string($value) && $value === '') || (is_array($value) && $value === []));
+
+                foreach ($rules as $rule) {
+                    // Non-implicit rules should skip if the value is "empty"
+                    if ($isEmpty && !$this->isImplicitRule($rule)) {
+                        continue;
                     }
 
-                    /** @phpstan-ignore-next-line */
-                    if ($this->shouldStopValidation($errors)) {
-                        break;
+                    if ($this->applyRule($rule, $name, $value, $context)) {
+                        // Handle 'bail' rule (or ErrorMode::FirstPerField): stop validating this
+                        // field after its first failure
+                        if ($firstPerField || $field->isBail()) {
+                            break;
+                        }
+
+                        /** @phpstan-ignore-next-line */
+                        if ($this->shouldStopValidation($errors)) {
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        if ($errors->isCountOnly()) {
-            return new ValidationResult([], $data, $this->messageResolver, $excludedFields, $errors->fieldCounts());
-        }
+            if ($errors->isCountOnly()) {
+                return new ValidationResult([], $data, $this->messageResolver, $excludedFields, $errors->fieldCounts());
+            }
 
-        return new ValidationResult($errors->all(), $data, $this->messageResolver, $excludedFields);
+            return new ValidationResult($errors->all(), $data, $this->messageResolver, $excludedFields);
+        } finally {
+            // The engine (and its reusable collector/context) outlives this call - in pooled or
+            // long-running workers, across requests. Drop everything row-specific now, even if a
+            // rule threw, so no data or partial errors survive into the next validation or stay
+            // reachable (e.g. a sensitive request payload) while the worker idles. The returned
+            // ValidationResult holds its own copies.
+            $errors->reset();
+            $context->setData([]);
+        }
     }
 
     /**
@@ -184,6 +194,37 @@ final class ValidatorEngine
     public function getMessageResolver(): ?MessageResolver
     {
         return $this->messageResolver;
+    }
+
+    /**
+     * Snapshot of every configurable setting, for restoring an engine to a known state when
+     * it is handed to the next request/job (see StatelessValidator / ValidatorPool).
+     *
+     * @return array{failFast: bool, maxErrors: int, errorMode: ErrorMode, messageResolver: ?MessageResolver, databaseValidator: ?\Vi\Validation\Rules\DatabaseValidatorInterface, passwordHasher: ?\Vi\Validation\Rules\PasswordHasherInterface}
+     */
+    public function exportSettings(): array
+    {
+        return [
+            'failFast' => $this->failFast,
+            'maxErrors' => $this->maxErrors,
+            'errorMode' => $this->errorMode,
+            'messageResolver' => $this->messageResolver,
+            'databaseValidator' => $this->databaseValidator,
+            'passwordHasher' => $this->passwordHasher,
+        ];
+    }
+
+    /**
+     * @param array{failFast: bool, maxErrors: int, errorMode: ErrorMode, messageResolver: ?MessageResolver, databaseValidator: ?\Vi\Validation\Rules\DatabaseValidatorInterface, passwordHasher: ?\Vi\Validation\Rules\PasswordHasherInterface} $settings
+     */
+    public function importSettings(array $settings): void
+    {
+        $this->failFast = $settings['failFast'];
+        $this->maxErrors = $settings['maxErrors'];
+        $this->errorMode = $settings['errorMode'];
+        $this->messageResolver = $settings['messageResolver'];
+        $this->databaseValidator = $settings['databaseValidator'];
+        $this->passwordHasher = $settings['passwordHasher'];
     }
 
     public function setFailFast(bool $failFast): void

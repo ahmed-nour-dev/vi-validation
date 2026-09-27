@@ -29,16 +29,21 @@ final class ContextManager implements RuntimeAwareInterface
 
     public function onRequestStart(): void
     {
-        $this->currentContext = null;
-        $this->customMessages = [];
-        $this->customAttributes = [];
+        $this->clearRequestState();
     }
 
     public function onRequestEnd(): void
     {
+        $this->clearRequestState();
+    }
+
+    private function clearRequestState(): void
+    {
         $this->currentContext = null;
         $this->customMessages = [];
         $this->customAttributes = [];
+        $this->messageResolver?->setCustomMessages([]);
+        $this->messageResolver?->setCustomAttributes([]);
     }
 
     public function onWorkerStop(): void
@@ -77,13 +82,10 @@ final class ContextManager implements RuntimeAwareInterface
             $this->messageResolver = new MessageResolver();
         }
 
-        if (!empty($this->customMessages)) {
-            $this->messageResolver->setCustomMessages($this->customMessages);
-        }
-
-        if (!empty($this->customAttributes)) {
-            $this->messageResolver->setCustomAttributes($this->customAttributes);
-        }
+        // Always apply (even when empty): the resolver is shared for the worker's lifetime, so
+        // skipping empty sets would leave the previous request's messages/attributes active.
+        $this->messageResolver->setCustomMessages($this->customMessages);
+        $this->messageResolver->setCustomAttributes($this->customAttributes);
 
         return $this->messageResolver;
     }

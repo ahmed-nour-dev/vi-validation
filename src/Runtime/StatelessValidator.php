@@ -17,12 +17,16 @@ final class StatelessValidator implements RuntimeAwareInterface
     private ValidatorEngine $engine;
     private ContextManager $contextManager;
 
+    /** @var array{failFast: bool, maxErrors: int, errorMode: \Vi\Validation\Execution\ErrorMode, messageResolver: ?\Vi\Validation\Messages\MessageResolver, databaseValidator: ?\Vi\Validation\Rules\DatabaseValidatorInterface, passwordHasher: ?\Vi\Validation\Rules\PasswordHasherInterface} */
+    private array $baseline;
+
     public function __construct(
         ?ValidatorEngine $engine = null,
         ?ContextManager $contextManager = null
     ) {
         $this->engine = $engine ?? new ValidatorEngine();
         $this->contextManager = $contextManager ?? new ContextManager();
+        $this->baseline = $this->engine->exportSettings();
     }
 
     public function onWorkerStart(): void
@@ -35,9 +39,16 @@ final class StatelessValidator implements RuntimeAwareInterface
         $this->contextManager->onRequestStart();
     }
 
+    /**
+     * Ends the request: clears request-scoped context and restores the engine's settings
+     * (fail-fast, max errors, error mode, message resolver, database validator, password
+     * hasher) to what they were when this validator was created, so nothing one borrower
+     * changed is visible to the next.
+     */
     public function onRequestEnd(): void
     {
         $this->contextManager->onRequestEnd();
+        $this->engine->importSettings($this->baseline);
     }
 
     public function onWorkerStop(): void
@@ -52,12 +63,11 @@ final class StatelessValidator implements RuntimeAwareInterface
      */
     public function validate(CompiledSchema $schema, array $data): ValidationResult
     {
-        try {
-            $this->onRequestStart();
-            return $this->engine->validate($schema, $data);
-        } finally {
-            $this->onRequestEnd();
-        }
+        // The engine clears all row state itself when validate() returns or throws; request-
+        // level state is reset by onRequestEnd() (called by ValidatorPool::release() or the
+        // worker adapters), not per row, so request-level settings apply to every row of the
+        // request.
+        return $this->engine->validate($schema, $data);
     }
 
     /**

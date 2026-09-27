@@ -30,6 +30,13 @@ final class Translator implements TranslatorInterface
     {
         $locale = $locale ?? $this->locale;
 
+        if (!isset($this->messages[$locale])) {
+            $this->loadBundledLocale($locale);
+        }
+        if (!isset($this->messages[$this->fallbackLocale])) {
+            $this->loadBundledLocale($this->fallbackLocale);
+        }
+
         $message = $this->getMessage($key, $locale);
 
         if ($message === null) {
@@ -87,6 +94,28 @@ final class Translator implements TranslatorInterface
             if (is_array($messages)) {
                 $this->addMessages($messages, $locale);
             }
+        }
+    }
+
+    /**
+     * Load the catalog this package ships for $locale (resources/lang/{locale}/validation.php),
+     * e.g. Arabic, the first time that locale is used. Without this, only English (built in
+     * above) worked unless a lang path was configured explicitly. A catalog from the configured
+     * lang path, if any, takes precedence. Locales with no catalog are remembered as empty so
+     * the lookup happens once.
+     */
+    private function loadBundledLocale(string $locale): void
+    {
+        $this->messages[$locale] ??= [];
+
+        if (preg_match('/^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/D', $locale) !== 1) {
+            return;
+        }
+
+        $this->loadFromPath(dirname(__DIR__, 2) . '/resources/lang', $locale);
+
+        if ($this->langPath !== null) {
+            $this->loadFromPath($this->langPath, $locale);
         }
     }
 
