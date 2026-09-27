@@ -60,6 +60,15 @@ final class FuzzRegressionTest extends ParityTestCase
     {
         foreach (['date_format:Y-m-d', 'date', 'after:2020-01-01', 'before:2030-01-01', 'after_or_equal:2020-01-01', 'before_or_equal:2030-01-01', 'date_equals:2024-01-01'] as $rule) {
             foreach (["2024-01-01\0", "\0", "x\0y"] as $value) {
+                try {
+                    $this->laravel(['a' => $value], ['a' => $rule])->passes();
+                } catch (\ValueError) {
+                    // Older Laravel 10 releases throw here themselves; vi/validation must still
+                    // reject the value rather than throw.
+                    $result = (new \Vi\Validation\SchemaValidator(\Vi\Validation\Validator::fromRules(['a' => $rule])))->validate(['a' => $value]);
+                    $this->assertFalse($result->isValid(), "{$rule} " . json_encode($value));
+                    continue;
+                }
                 $this->assertParity(['a' => $rule], ['a' => $value]);
             }
         }
