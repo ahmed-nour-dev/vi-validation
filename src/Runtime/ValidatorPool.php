@@ -17,10 +17,23 @@ final class ValidatorPool implements RuntimeAwareInterface
     private int $maxSize;
     private int $created = 0;
 
+    /**
+     * Validators currently handed out. Weak, so a borrower that drops a validator without
+     * releasing it doesn't leak it (and object-id reuse can never confuse the bookkeeping).
+     *
+     * @var \WeakMap<StatelessValidator, true>
+     */
+    private \WeakMap $checkedOut;
+
+    /** @var \WeakMap<StatelessValidator, true> validators owned by (and returnable to) the pool */
+    private \WeakMap $pooled;
+
     public function __construct(int $maxSize = 10)
     {
         $this->maxSize = $maxSize;
         $this->pool = new SplQueue();
+        $this->checkedOut = new \WeakMap();
+        $this->pooled = new \WeakMap();
     }
 
     public function onWorkerStart(): void
@@ -51,42 +64,62 @@ final class ValidatorPool implements RuntimeAwareInterface
             $validator->onWorkerStop();
         }
         $this->created = 0;
+        $this->checkedOut = new \WeakMap();
+        $this->pooled = new \WeakMap();
     }
 
     /**
      * Acquire a validator from the pool.
+     *
+     * A validator is handed to exactly one borrower at a time (instances are not safe for
+     * concurrent use, e.g. by two Swoole coroutines). When all pooled validators are checked
+     * out, a temporary one is created and discarded on release.
      */
     public function acquire(): StatelessValidator
     {
         if (!$this->pool->isEmpty()) {
             $validator = $this->pool->dequeue();
-            $validator->onRequestStart();
-            return $validator;
-        }
-
-        if ($this->created < $this->maxSize) {
+        } elseif ($this->created < $this->maxSize) {
             $validator = $this->createValidator();
             $validator->onWorkerStart();
-            $validator->onRequestStart();
-            return $validator;
+        } else {
+            // Pool exhausted: temporary validator, never enqueued.
+            $validator = new StatelessValidator();
         }
 
-        // Pool exhausted, create temporary validator
-        $validator = $this->createValidator();
+        $this->checkedOut[$validator] = true;
         $validator->onRequestStart();
+
         return $validator;
     }
 
     /**
-     * Release a validator back to the pool.
+     * Release a validator back to the pool, resetting its request state first.
+     *
+     * Releasing a validator that isn't currently checked out (a double release, or one this
+     * pool never handed out) is a no-op, so it can never be enqueued twice and end up shared
+     * by two borrowers.
      */
     public function release(StatelessValidator $validator): void
     {
+        if (!isset($this->checkedOut[$validator])) {
+            return;
+        }
+        unset($this->checkedOut[$validator]);
+
         $validator->onRequestEnd();
 
-        if ($this->pool->count() < $this->maxSize) {
+        if (isset($this->pooled[$validator]) && $this->pool->count() < $this->maxSize) {
             $this->pool->enqueue($validator);
         }
+    }
+
+    /**
+     * Number of validators currently handed out and not yet released.
+     */
+    public function getCheckedOutCount(): int
+    {
+        return count($this->checkedOut);
     }
 
     /**
@@ -134,6 +167,9 @@ final class ValidatorPool implements RuntimeAwareInterface
     private function createValidator(): StatelessValidator
     {
         $this->created++;
-        return new StatelessValidator();
+        $validator = new StatelessValidator();
+        $this->pooled[$validator] = true;
+
+        return $validator;
     }
 }

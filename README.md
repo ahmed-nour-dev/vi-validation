@@ -566,6 +566,15 @@ $result = $pool->withValidator(function ($validator) use ($schema, $data) {
 $pool->onWorkerStop(); // drain on worker shutdown
 ```
 
+**Worker-safety guarantees** (covered by `tests/Unit/Runtime/WorkerSafetyTest.php`)
+
+- **Per validation.** `ValidatorEngine` reuses one error collector and one context for speed, and resets both when `validate()` returns **or throws**. No partial errors survive, and the last row's data (e.g. a request payload) doesn't stay reachable while the worker idles. Thousands of interleaved validations of different schemas through one engine give exactly the results of fresh engines.
+- **Results are immutable.** A `ValidationResult` owns copies of its data and errors; later validations never change it.
+- **Per request / borrower.** `ValidatorPool::release()` (and so `withValidator()`, even when the callback throws) restores the engine's settings as they were at creation: fail-fast, max errors, error mode, message resolver, database validator and password hasher. `ContextManager` custom messages and attributes are cleared too, so nothing one request configures is visible to the next.
+- **One borrower at a time.** A pooled validator is never handed to two borrowers. Double or foreign `release()` calls are ignored, and temporary validators created when the pool is exhausted are discarded instead of growing the pool.
+- **Process-wide caches are immutable.** Compiled schemas, native closures and fingerprints are keyed by content and safe to share.
+- **Not coroutine-safe.** A single engine/`SchemaValidator`/`StatelessValidator` instance must not be used by two coroutines at the same time (e.g. across a Swoole I/O yield inside a `unique` rule). Give each coroutine its own instance via `ValidatorPool::acquire()`.
+
 ---
 
 ## ⚙️ Configuration
