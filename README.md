@@ -222,6 +222,13 @@ foreach ($validator->failures($rows) as $index => $result) {
 // Stop at the very first failure (fail-fast)
 $firstFailure = $validator->firstFailure($rows);
 
+// ...or keep track of *which* row failed, without re-validating anything
+if ($failure = $validator->firstFailureWithIndex($rows)) {
+    // $failure->index: zero-based position in iteration order
+    // $failure->key:   the key the source produced (array key / generator key, e.g. a CSV line number)
+    echo "Row {$failure->key} failed: " . $failure->result->first();
+}
+
 // Cheap boolean check over an entire dataset
 $allGood = $validator->allValid($rows);
 ```
