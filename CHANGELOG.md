@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SchemaFingerprint` (`schemaHash`, `artifactKey`, `stable`) computed from the compiled
   schema rather than its input format. Native artifacts are now keyed by it via
   `ValidatorCompiler::nativeKeyFor()` / `writeNativeFor()` (#19).
+- `NativeArtifactRepository` hardens the native artifact lifecycle: flock-serialized
+  generation, syntax check before activation, atomic temp-file + rename writes, a
+  versioned/checksummed header verified before `require`, shape verification of the returned
+  closure, automatic discard of corrupt artifacts with safe engine fallback, per-process
+  memoization of loaded closures, and `ValidatorCompiler::clearNative()` / `pruneNative()` (#15).
+- `SchemaValidator::usesNative()` (#15).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is
@@ -27,9 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FastValidatorFactory`'s schema cache keyed closures and rule objects by
   `spl_object_id()`, which PHP reuses, so a later call could get a schema built with a
   different closure. Such rule sets are no longer cached (#19).
+- `SchemaValidator::validate()` hashed the rules array and called `file_exists()` on every
+  row (even with no cache path configured, probing `/native/<key>.php`); the native artifact
+  is now resolved once per validator instance (#15).
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).
+- `ValidatorCompiler::writeNative($key, $schema)`; use `writeNativeFor($schema)` (#15).
 
 ## [0.1.0] - 2026-02-04
 
