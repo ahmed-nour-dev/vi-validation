@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require`d or `unserialize()`d. Artifacts that are symlinks, world-writable, or in a
   world-writable non-sticky directory are refused (#20).
 - Documented security model & trust boundaries in `docs/native-compilation.md` (#20).
+- Explicit schema lifecycle (build → compile → generate/persist → load → execute), documented
+  in `docs/native-compilation.md`: `Validator::fromRules()`, `SchemaValidator::warm()`,
+  `FastValidatorFactory::compile()` / `precompile()` / `clearCompiled()` / `pruneCompiled()` /
+  `getCompiler()`, `FastValidatorWrapper::getSchemaValidator()`, `Laravel\RuleSetCompiler`,
+  plus `tests/benchmark_lifecycle.php` separating one-time from steady-state costs (#16).
+- `nullable` and `bail` are native-compilable, so most real-world schemas can now run natively
+  (2.3x the engine's throughput in the lifecycle benchmark) (#16).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is
@@ -52,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   messages/attributes that were previously discarded (#20).
 - `FileSchemaCache` entries stored with a TTL of 0 ("never expires") could never be read
   back; cache writes are now atomic (#20).
+- The Laravel factory ignored the `compilation.*` config and `SchemaValidator::build()` with
+  `precompile` never generated anything, so native validators were never used. Both now
+  load existing artifacts from `cache_path` and generate on first use when `precompile` is on;
+  the message resolver is passed to the native path too (#16).
+- `FastValidatorWrapper::sometimes()` rebuilt the validator with default settings, dropping
+  custom messages/attributes, fail-fast/max-errors and Laravel's numeric context for
+  `min`/`max` (#16).
+- Native validators omitted `params` from errors without parameters; error arrays now have
+  the same shape as the engine's (#16).
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).

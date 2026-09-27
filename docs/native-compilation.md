@@ -1,8 +1,102 @@
 # Native compilation & schema artifacts
 
-This document describes how vi/validation identifies compiled schemas and how the
-generated native PHP artifacts are keyed. See the README's "Native compilation
-compatibility contract" for which rules can be inlined.
+This document describes the lifecycle of a validation schema, how vi/validation identifies
+compiled schemas, and how the generated native PHP artifacts are keyed, stored and secured.
+See the README's "Native compilation compatibility contract" for which rules can be inlined.
+
+## Schema lifecycle
+
+A schema goes through five explicit steps, and each one can be done separately. That lets a
+deployment do the expensive ones ahead of time, so no request or job ever pays for them:
+
+| Step | API | Cost (see benchmark below) | When |
+| :--- | :--- | :--- | :--- |
+| 1. **Build** | `Validator::schema()->field(...)->...` or `Validator::fromRules([...])` | | boot / per request |
+| 2. **Compile** | `->compile()` → `CompiledSchema` (immutable; cacheable with `ArraySchemaCache` / `FileSchemaCache`) | ~60 µs | once per process (cached) |
+| 3. **Generate + persist artifact** | `ValidatorCompiler::writeNativeFor($schema)`, `FastValidatorFactory::precompile($rules)` | ~0.3 ms | **deploy time**, or on first use when `precompile` is on |
+| 4. **Load artifact** | `SchemaValidator::warm()` (or implicitly on the first `validate()`) | ~0.1 ms, once per process | boot / worker start |
+| 5. **Execute** | `SchemaValidator::validate()`, `stream()`, `each()`, ... | per row | hot path |
+
+`compilation.precompile` / `ValidatorCompiler(precompile: true)` controls **only** whether
+step 3 may run lazily at runtime. An artifact that already exists (for example one generated
+at deploy time) is always loaded when a `cache_path` is configured.
+
+### Standalone (ETL / queue workers)
+
+```php
+use Vi\Validation\Compilation\ValidatorCompiler;
+use Vi\Validation\SchemaValidator;
+use Vi\Validation\Validator;
+
+$rules = ['email' => 'required|email', 'age' => 'nullable|integer|min:18'];
+
+// Deploy step (e.g. bin/warm-validators.php, run once per release):
+$compiler = new ValidatorCompiler(cachePath: '/var/cache/app/validation', signingKey: $secret);
+$compiler->pruneNative();                                   // drop artifacts of older releases
+$compiler->writeNativeFor(Validator::fromRules($rules));    // generate + persist
+
+// Worker start: build, compile, load once...
+$validator = new SchemaValidator(Validator::fromRules($rules), compiler: $compiler);
+$validator->warm();   // true => native closure loaded; false => engine (not compilable)
+
+// ...then execute millions of rows with no discovery work on the hot path.
+foreach ($validator->stream($rows) as $i => $result) { /* ... */ }
+```
+
+### Laravel
+
+```php
+// config/fast-validation.php
+'compilation' => [
+    'precompile' => env('FAST_VALIDATION_PRECOMPILE', false), // generate lazily on first use?
+    'cache_path' => storage_path('framework/validation/compiled'),
+],
+```
+
+`FastValidator::make()` automatically loads a matching artifact from `cache_path`. To
+generate artifacts at deploy time instead of on first use, call the factory from a deploy
+command or a service provider:
+
+```php
+$factory = app(\Vi\Validation\Laravel\FastValidatorFactory::class);
+
+$factory->pruneCompiled();                              // after upgrading PHP / the package
+$factory->precompile(['email' => 'required|email']);    // returns the artifact path, or null
+```
+
+`$factory->clearCompiled()` removes every artifact.
+`FastValidator::make(...)->getSchemaValidator()->usesNative()` tells you which strategy a
+given rule set runs on.
+
+The same `MessageResolver` is handed to both the engine and the native path, so custom
+messages and attribute names apply whichever path executes.
+
+### Benchmark
+
+`php tests/benchmark_lifecycle.php 100000` separates one-time costs from steady-state
+throughput. It uses a five-field schema (`required|string|min|max`, `required|email`,
+`nullable|integer|min|max`, `boolean`, `nullable|url`) and 100k rows, 10% of them invalid.
+Results on PHP 8.4 CLI with OPcache and JIT off:
+
+```
+One-time costs
+  build+compile schema from rules:      60.5 µs
+  fingerprint:                          19.7 µs
+  native codegen + verify + persist:    269.7 µs
+  artifact load (verify + require):     114.9 µs  (once per process)
+
+Per request (factory make() + validate 1 row, warm process)
+  engine:  9.9 µs
+  native:  6.7 µs
+
+Steady state engine:    0.482 s       207,578 rows/s
+Steady state native:    0.213 s       470,517 rows/s
+native speedup over engine: 2.27x
+```
+
+Before this lifecycle work, every `validate()` call re-hashed the rules and probed the
+filesystem. Also, `nullable` and `bail` (pure markers) weren't native-compilable, which kept
+most real-world schemas on the engine.
 
 ## Schema identity (fingerprints)
 

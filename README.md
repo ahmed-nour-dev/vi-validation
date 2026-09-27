@@ -504,8 +504,8 @@ This creates `config/fast-validation.php` with the following options (each overr
 | `cache.driver` | `FAST_VALIDATION_CACHE_DRIVER` | `array` | `array` (per-request) or `file` (persisted across requests/workers). |
 | `cache.ttl` | `FAST_VALIDATION_CACHE_TTL` | `3600` | Cache lifetime in seconds. |
 | `cache.path` | — | `storage/framework/validation/cache` | Storage path used by the `file` cache driver. |
-| `compilation.precompile` | `FAST_VALIDATION_PRECOMPILE` | `false` | Generate and persist native PHP validator closures ahead of time for maximum throughput in production. |
-| `compilation.cache_path` | — | `storage/framework/validation/compiled` | Where precompiled native validators are stored. |
+| `compilation.precompile` | `FAST_VALIDATION_PRECOMPILE` | `false` | Generate a schema's native PHP validator closure on first use. Existing artifacts (e.g. from `FastValidatorFactory::precompile()` at deploy time) are loaded regardless. |
+| `compilation.cache_path` | — | `storage/framework/validation/compiled` | Where native validators are stored/loaded. See the [schema lifecycle](docs/native-compilation.md#schema-lifecycle). |
 | `security.signing_key` | `FAST_VALIDATION_SIGNING_KEY` | `APP_KEY` | Secret used to HMAC-sign cached schemas and native artifacts; unverified files are never loaded. See [security model](docs/native-compilation.md#security-model--trust-boundaries). |
 | `performance.fail_fast` | `FAST_VALIDATION_FAIL_FAST` | `false` | Stop validating a field after its first error. |
 | `performance.max_errors` | `FAST_VALIDATION_MAX_ERRORS` | `100` | Stop collecting errors after this many, to bound worst-case cost on malformed input. |
@@ -520,7 +520,7 @@ This creates `config/fast-validation.php` with the following options (each overr
 
 When `compilation.precompile` (or a `cache_path` passed to `ValidatorCompiler`) is enabled, `NativeCompiler` tries to turn a schema into a single inlined PHP closure for maximum throughput. **A native validator must never change validation semantics compared to the standard `ValidatorEngine`.**
 
-Only a fixed set of rules can currently be inlined: `required`, `string`, `integer`, `numeric`, `boolean`, `array`, `email`, `url`, `ip`, `json`, `min`, `max`, `alpha`, `alpha_num`, and `alpha_dash`. If a schema contains any other rule (e.g. `in`, `regex`, `unique`, `distinct`, database rules, closures, ...), `NativeCompiler::compile()` throws `UnsupportedNativeRuleException` instead of silently dropping the rule. `ValidatorCompiler::writeNativeFor()` catches this and simply does not write a native artifact for that schema — `SchemaValidator::validate()` then finds no native artifact and transparently falls back to `ValidatorEngine`, so the exact same schema always produces the exact same result whether or not it happened to be native-compilable.
+Only a fixed set of rules can currently be inlined: `required`, `nullable`, `bail`, `string`, `integer`, `numeric`, `boolean`, `array`, `email`, `url`, `ip`, `json`, `min`, `max`, `alpha`, `alpha_num`, and `alpha_dash`. If a schema contains any other rule (e.g. `in`, `regex`, `unique`, `distinct`, database rules, closures, ...), `NativeCompiler::compile()` throws `UnsupportedNativeRuleException` instead of silently dropping the rule. `ValidatorCompiler::writeNativeFor()` catches this and simply does not write a native artifact for that schema — `SchemaValidator::validate()` then finds no native artifact and transparently falls back to `ValidatorEngine`, so the exact same schema always produces the exact same result whether or not it happened to be native-compilable.
 
 Native artifacts are keyed by the schema's deterministic fingerprint (`$schema->fingerprint()`), which also encodes the compiler and PHP versions — see [docs/native-compilation.md](docs/native-compilation.md) for what is and isn't part of a schema's identity.
 

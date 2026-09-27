@@ -35,7 +35,7 @@ class NativeCompilableInterfaceTest extends TestCase
 
         $this->assertSame(
             "    if (\$val_name === null) {\n"
-            . "        \$errors['name'][] = ['rule' => 'required', 'message' => null];\n"
+            . "        \$errors['name'][] = ['rule' => 'required', 'params' => [], 'message' => null];\n"
             . "        \$hasErrors = true;\n"
             . "    }\n",
             $code

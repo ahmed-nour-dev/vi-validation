@@ -42,10 +42,12 @@ final class SchemaValidator
         }
         $definition($builder);
 
+        $signingKey = $config['security']['signing_key'] ?? null;
         $compiler = new \Vi\Validation\Compilation\ValidatorCompiler(
             null,
-            $config['compilation']['precompile'] ?? false,
-            $config['compilation']['cache_path'] ?? null
+            (bool) ($config['compilation']['precompile'] ?? false),
+            $config['compilation']['cache_path'] ?? null,
+            is_string($signingKey) && $signingKey !== '' ? $signingKey : null
         );
 
         return new self($builder->compile(), null, $compiler);
@@ -59,6 +61,28 @@ final class SchemaValidator
     public function getEngine(): ValidatorEngine
     {
         return $this->engine;
+    }
+
+    public function getCompiler(): \Vi\Validation\Compilation\ValidatorCompiler
+    {
+        return $this->compiler;
+    }
+
+    public function getMessageResolver(): ?\Vi\Validation\Messages\MessageResolver
+    {
+        return $this->messageResolver;
+    }
+
+    /**
+     * Resolve the execution strategy now instead of on the first validate() call: load the
+     * schema's native artifact, generating it first when `precompile` is enabled. Call it at
+     * boot/deploy time (or when a queue worker starts) so the first real row pays nothing.
+     *
+     * Returns whether validation will run natively.
+     */
+    public function warm(): bool
+    {
+        return $this->usesNative();
     }
 
     private ?\Vi\Validation\Execution\NativeValidator $cachedNativeValidator = null;
@@ -95,6 +119,12 @@ final class SchemaValidator
         if (!$this->nativeResolved) {
             $this->nativeResolved = true;
             $closure = $this->compiler->loadNativeFor($this->schema);
+
+            // Compile-on-first-use: generate the artifact once, then load it.
+            if ($closure === null && $this->compiler->isPrecompileEnabled() && $this->compiler->writeNativeFor($this->schema) !== null) {
+                $closure = $this->compiler->loadNativeFor($this->schema);
+            }
+
             if ($closure !== null) {
                 $this->cachedNativeValidator = new \Vi\Validation\Execution\NativeValidator($closure, $this->messageResolver);
             }

@@ -59,9 +59,10 @@ final class NativeCompilationContext
     {
         $fieldKey = var_export($this->fieldName, true);
         $ruleKey = var_export($ruleName, true);
-        $paramsCode = $paramsPhpExpr !== null ? ", 'params' => {$paramsPhpExpr}" : '';
+        // Always emit 'params' so native errors have exactly the engine's shape.
+        $paramsCode = $paramsPhpExpr ?? '[]';
 
-        return "{$this->indent}\$errors[{$fieldKey}][] = ['rule' => {$ruleKey}{$paramsCode}, 'message' => null];\n"
+        return "{$this->indent}\$errors[{$fieldKey}][] = ['rule' => {$ruleKey}, 'params' => {$paramsCode}, 'message' => null];\n"
             . "{$this->indent}\$hasErrors = true;\n";
     }
 }
