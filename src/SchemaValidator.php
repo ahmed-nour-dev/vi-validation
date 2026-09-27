@@ -171,8 +171,13 @@ final class SchemaValidator
     /**
      * Stream-validate rows using a generator for memory-efficient batch processing.
      *
-     * This method yields results one at a time, allowing PHP to garbage collect
-     * each result after processing. Ideal for large datasets (ETL, imports, queues).
+     * Rows are pulled from $rows one at a time and each result is yielded before the next row
+     * is read, so memory stays bounded by one row + its result regardless of dataset size -
+     * provided the caller doesn't keep the results. Nothing is materialized: arrays,
+     * generators, iterators, database cursors and Laravel LazyCollections are all consumed
+     * lazily. Each ValidationResult is an independent immutable value; later rows never
+     * change an earlier result. Breaking out of the loop early is safe: the validator holds no
+     * per-stream state and can be reused immediately.
      *
      * Usage:
      * ```php
@@ -183,15 +188,17 @@ final class SchemaValidator
      * }
      * ```
      *
-     * @param iterable<array<string, mixed>> $rows
-     * @return Generator<int, ValidationResult>
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @param bool $preserveKeys Yield the source's own keys (array keys, or whatever a generator
+     *        yields, e.g. CSV line numbers or primary keys) instead of a zero-based position.
+     * @return Generator<array-key, ValidationResult>
      */
-    public function stream(iterable $rows): Generator
+    public function stream(iterable $rows, bool $preserveKeys = false): Generator
     {
         $index = 0;
 
-        foreach ($rows as $row) {
-            yield $index => $this->validate($row);
+        foreach ($rows as $key => $row) {
+            yield ($preserveKeys ? $key : $index) => $this->validate($row);
             $index++;
         }
     }
@@ -211,16 +218,16 @@ final class SchemaValidator
      * });
      * ```
      *
-     * @param iterable<array<string, mixed>> $rows
-     * @param callable(ValidationResult $result, int $index): void $callback
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @param callable(ValidationResult $result, int|string $index): void $callback
+     * @param bool $preserveKeys Pass the source's own key instead of a zero-based position.
      */
-    public function each(iterable $rows, callable $callback): void
+    public function each(iterable $rows, callable $callback, bool $preserveKeys = false): void
     {
         $index = 0;
 
-        foreach ($rows as $row) {
-            $result = $this->validate($row);
-            $callback($result, $index);
+        foreach ($rows as $key => $row) {
+            $callback($this->validate($row), $preserveKeys ? $key : $index);
             $index++;
         }
     }
@@ -231,18 +238,19 @@ final class SchemaValidator
      * Memory-efficient way to find all validation errors without storing
      * successful validations. Useful for batch import error reporting.
      *
-     * @param iterable<array<string, mixed>> $rows
-     * @return Generator<int, ValidationResult> Yields only failed validation results with their original index
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @param bool $preserveKeys Key failures by the source's own keys instead of zero-based position.
+     * @return Generator<array-key, ValidationResult> Yields only failed validation results with their original index
      */
-    public function failures(iterable $rows): Generator
+    public function failures(iterable $rows, bool $preserveKeys = false): Generator
     {
         $index = 0;
 
-        foreach ($rows as $row) {
+        foreach ($rows as $key => $row) {
             $result = $this->validate($row);
 
             if (!$result->isValid()) {
-                yield $index => $result;
+                yield ($preserveKeys ? $key : $index) => $result;
             }
 
             $index++;
