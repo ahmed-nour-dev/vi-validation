@@ -16,3 +16,7 @@ log.txt
 !/storage/app/downloads
 .idea
 .rnd
+
+# Per-run benchmark output (the committed reference lives in benchmarks/results/reference.*)
+/benchmarks/results/latest.*
+/benchmarks/results/regression.json

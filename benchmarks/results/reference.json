@@ -1,0 +1,307 @@
+{
+    "environment": {
+        "php": "8.4.19",
+        "laravel_validation": "v11.47.0",
+        "vi_validation_compiler": "2.0.0",
+        "os": "Linux 6.18.44-fc-v37",
+        "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+        "cpu_count": 4,
+        "memory_bytes": 16877547520,
+        "opcache": false,
+        "jit": false,
+        "sapi": "cli",
+        "timestamp": "2026-09-27T15:12:54+00:00"
+    },
+    "one_time": {
+        "user_import": {
+            "compile_ms": 0.1623,
+            "codegen_ms": 1.9285,
+            "load_ms": 0.3106,
+            "native_compilable": true
+        },
+        "order_lines": {
+            "compile_ms": 0.0435,
+            "codegen_ms": null,
+            "load_ms": null,
+            "native_compilable": false
+        },
+        "api_payload": {
+            "compile_ms": 0.0439,
+            "codegen_ms": null,
+            "load_ms": null,
+            "native_compilable": false
+        }
+    },
+    "results": [
+        {
+            "scenario": "user_import",
+            "path": "laravel",
+            "rows": 1000,
+            "seconds": 0.3074,
+            "rows_per_sec": 3253,
+            "peak_memory_bytes": 66880,
+            "failures": 105,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "user_import",
+            "path": "factory",
+            "rows": 1000,
+            "seconds": 0.0151,
+            "rows_per_sec": 66345,
+            "peak_memory_bytes": 6936,
+            "failures": 105,
+            "speedup_vs_laravel": 20.4
+        },
+        {
+            "scenario": "user_import",
+            "path": "engine",
+            "rows": 1000,
+            "seconds": 0.0074,
+            "rows_per_sec": 135671,
+            "peak_memory_bytes": 5352,
+            "failures": 105,
+            "speedup_vs_laravel": 41.7
+        },
+        {
+            "scenario": "user_import",
+            "path": "native",
+            "rows": 1000,
+            "seconds": 0.0039,
+            "rows_per_sec": 257440,
+            "peak_memory_bytes": 5640,
+            "failures": 105,
+            "speedup_vs_laravel": 79.1
+        },
+        {
+            "scenario": "user_import",
+            "path": "laravel",
+            "rows": 10000,
+            "seconds": 3.0158,
+            "rows_per_sec": 3316,
+            "peak_memory_bytes": 47648,
+            "failures": 1046,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "user_import",
+            "path": "factory",
+            "rows": 10000,
+            "seconds": 0.1299,
+            "rows_per_sec": 77000,
+            "peak_memory_bytes": 6936,
+            "failures": 1046,
+            "speedup_vs_laravel": 23.2
+        },
+        {
+            "scenario": "user_import",
+            "path": "engine",
+            "rows": 10000,
+            "seconds": 0.0697,
+            "rows_per_sec": 143374,
+            "peak_memory_bytes": 5352,
+            "failures": 1046,
+            "speedup_vs_laravel": 43.2
+        },
+        {
+            "scenario": "user_import",
+            "path": "native",
+            "rows": 10000,
+            "seconds": 0.0324,
+            "rows_per_sec": 308428,
+            "peak_memory_bytes": 5640,
+            "failures": 1046,
+            "speedup_vs_laravel": 93
+        },
+        {
+            "scenario": "user_import",
+            "path": "factory",
+            "rows": 100000,
+            "seconds": 1.3855,
+            "rows_per_sec": 72177,
+            "peak_memory_bytes": 6936,
+            "failures": 10043,
+            "speedup_vs_laravel": 21.8
+        },
+        {
+            "scenario": "user_import",
+            "path": "engine",
+            "rows": 100000,
+            "seconds": 0.7206,
+            "rows_per_sec": 138768,
+            "peak_memory_bytes": 5352,
+            "failures": 10043,
+            "speedup_vs_laravel": 41.8
+        },
+        {
+            "scenario": "user_import",
+            "path": "native",
+            "rows": 100000,
+            "seconds": 0.3207,
+            "rows_per_sec": 311833,
+            "peak_memory_bytes": 5640,
+            "failures": 10043,
+            "speedup_vs_laravel": 94
+        },
+        {
+            "scenario": "order_lines",
+            "path": "laravel",
+            "rows": 1000,
+            "seconds": 0.2275,
+            "rows_per_sec": 4395,
+            "peak_memory_bytes": 269232,
+            "failures": 86,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "order_lines",
+            "path": "factory",
+            "rows": 1000,
+            "seconds": 0.0132,
+            "rows_per_sec": 75563,
+            "peak_memory_bytes": 7136,
+            "failures": 86,
+            "speedup_vs_laravel": 17.2
+        },
+        {
+            "scenario": "order_lines",
+            "path": "engine",
+            "rows": 1000,
+            "seconds": 0.0073,
+            "rows_per_sec": 137190,
+            "peak_memory_bytes": 5552,
+            "failures": 86,
+            "speedup_vs_laravel": 31.2
+        },
+        {
+            "scenario": "order_lines",
+            "path": "laravel",
+            "rows": 10000,
+            "seconds": 2.3936,
+            "rows_per_sec": 4178,
+            "peak_memory_bytes": 442144,
+            "failures": 962,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "order_lines",
+            "path": "factory",
+            "rows": 10000,
+            "seconds": 0.1359,
+            "rows_per_sec": 73572,
+            "peak_memory_bytes": 7136,
+            "failures": 962,
+            "speedup_vs_laravel": 17.6
+        },
+        {
+            "scenario": "order_lines",
+            "path": "engine",
+            "rows": 10000,
+            "seconds": 0.0799,
+            "rows_per_sec": 125139,
+            "peak_memory_bytes": 5552,
+            "failures": 962,
+            "speedup_vs_laravel": 30
+        },
+        {
+            "scenario": "order_lines",
+            "path": "factory",
+            "rows": 100000,
+            "seconds": 1.3691,
+            "rows_per_sec": 73041,
+            "peak_memory_bytes": 7136,
+            "failures": 9716,
+            "speedup_vs_laravel": 17.5
+        },
+        {
+            "scenario": "order_lines",
+            "path": "engine",
+            "rows": 100000,
+            "seconds": 0.792,
+            "rows_per_sec": 126261,
+            "peak_memory_bytes": 5552,
+            "failures": 9716,
+            "speedup_vs_laravel": 30.2
+        },
+        {
+            "scenario": "api_payload",
+            "path": "laravel",
+            "rows": 1000,
+            "seconds": 0.2832,
+            "rows_per_sec": 3531,
+            "peak_memory_bytes": 52704,
+            "failures": 109,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "api_payload",
+            "path": "factory",
+            "rows": 1000,
+            "seconds": 0.0147,
+            "rows_per_sec": 68036,
+            "peak_memory_bytes": 6744,
+            "failures": 109,
+            "speedup_vs_laravel": 19.3
+        },
+        {
+            "scenario": "api_payload",
+            "path": "engine",
+            "rows": 1000,
+            "seconds": 0.008,
+            "rows_per_sec": 125328,
+            "peak_memory_bytes": 5512,
+            "failures": 109,
+            "speedup_vs_laravel": 35.5
+        },
+        {
+            "scenario": "api_payload",
+            "path": "laravel",
+            "rows": 10000,
+            "seconds": 2.8377,
+            "rows_per_sec": 3524,
+            "peak_memory_bytes": 50664,
+            "failures": 977,
+            "speedup_vs_laravel": null
+        },
+        {
+            "scenario": "api_payload",
+            "path": "factory",
+            "rows": 10000,
+            "seconds": 0.1532,
+            "rows_per_sec": 65295,
+            "peak_memory_bytes": 6744,
+            "failures": 977,
+            "speedup_vs_laravel": 18.5
+        },
+        {
+            "scenario": "api_payload",
+            "path": "engine",
+            "rows": 10000,
+            "seconds": 0.0827,
+            "rows_per_sec": 120959,
+            "peak_memory_bytes": 5512,
+            "failures": 977,
+            "speedup_vs_laravel": 34.3
+        },
+        {
+            "scenario": "api_payload",
+            "path": "factory",
+            "rows": 100000,
+            "seconds": 1.6269,
+            "rows_per_sec": 61465,
+            "peak_memory_bytes": 6744,
+            "failures": 9997,
+            "speedup_vs_laravel": 17.4
+        },
+        {
+            "scenario": "api_payload",
+            "path": "engine",
+            "rows": 100000,
+            "seconds": 0.8465,
+            "rows_per_sec": 118127,
+            "peak_memory_bytes": 5512,
+            "failures": 9997,
+            "speedup_vs_laravel": 33.5
+        }
+    ]
+}
