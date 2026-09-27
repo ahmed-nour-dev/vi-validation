@@ -75,3 +75,61 @@ later request could get back a schema built with a different closure.
 which is empty for every fluent schema, so all fluent schemas used to share a single native
 artifact key. Use `ValidatorCompiler::nativeKeyFor($schema)` (or
 `$schema->fingerprint()->artifactKey`) and `ValidatorCompiler::writeNativeFor($schema)`.
+
+## Artifact lifecycle & cache invalidation
+
+Native artifacts live in `<cache_path>/native/<artifactKey>.php` and are managed by
+`Compilation\NativeArtifactRepository` (reachable via `ValidatorCompiler::nativeRepository()`).
+
+### Writing
+
+`ValidatorCompiler::writeNativeFor($schema)` (or `NativeArtifactRepository::store()`):
+
+1. refuses unstable schemas and schemas with a rule `NativeCompiler` can't inline;
+2. takes an exclusive `flock()` on `<dir>/.lock`, so concurrent workers generating the same
+   artifact on a cold cache serialize, and re-checks for a valid artifact after acquiring it
+   (the losers of the race reuse the winner's file instead of regenerating it);
+3. prepends a header recording the artifact format, the key, the compiler version,
+   `PHP_VERSION_ID` and a SHA-256 of the body;
+4. syntax-checks the complete file with `token_get_all(..., TOKEN_PARSE)` — this parses
+   without executing anything — and refuses to persist invalid PHP;
+5. writes it to a unique temporary file in the same directory and `rename()`s it into place,
+   so readers only ever see no file or a complete file;
+6. invalidates the OPcache entry for the path.
+
+A failure at any step throws `NativeArtifactException` from the repository; `ValidatorCompiler`
+swallows it and returns `null`, since failing to produce an artifact must never break
+validation.
+
+### Loading
+
+`SchemaValidator` resolves its native artifact **once per instance** (not per row): the
+first `validate()` call (or `usesNative()`) asks the repository for the schema's closure and
+otherwise uses `ValidatorEngine` for the lifetime of the instance. There is no per-row
+hashing or `file_exists()`, and no lookup at all when no `cache_path` is configured.
+
+`NativeArtifactRepository::load()` only `require`s a file after checking its header (format
+and key must match) and its body checksum, so a truncated, tampered or foreign file (for
+example one copied under another key) is never executed. After `require` it checks that the
+file returned a `Closure` whose result has the expected `valid`/`errors`/`excluded_fields`
+shape. A file that fails any check is deleted and reported as absent: validation falls back
+to the engine and the next `writeNativeFor()` regenerates it.
+
+Verified closures are memoized per process (keyed by directory + key). In long-running
+workers each artifact is read, hashed and required at most once per process.
+`NativeArtifactRepository::flushMemory()` clears that memo.
+
+### Invalidation
+
+Because `artifactKey` includes the compiler version and `PHP_VERSION_ID`, upgrading either
+makes old artifacts unreachable; nothing stale is ever loaded. To reclaim disk space:
+
+```php
+$compiler = new \Vi\Validation\Compilation\ValidatorCompiler(null, false, $cachePath);
+
+$compiler->pruneNative();   // delete artifacts for other compiler/PHP versions + corrupt files
+$compiler->clearNative();   // delete every native artifact
+```
+
+`pruneNative()` is safe to run on every deploy. `clearPrecompiled()` also clears native
+artifacts.

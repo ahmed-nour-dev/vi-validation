@@ -13,6 +13,7 @@ final class ValidatorCompiler
     private bool $precompile;
     private ?string $cachePath;
     private NativeCompiler $nativeCompiler;
+    private ?NativeArtifactRepository $nativeRepository = null;
 
     public function __construct(
         ?SchemaCacheInterface $cache = null,
@@ -72,65 +73,62 @@ final class ValidatorCompiler
     }
 
     /**
-     * Generate and persist the native artifact for a schema, keyed by its fingerprint.
-     *
-     * Returns the artifact path, or null when nothing was (or could be) written: no cache
-     * path configured, the schema isn't fully native-compilable, or its fingerprint is
-     * unstable (it contains closures etc.), in which case a persisted artifact could be
-     * picked up by an unrelated schema in another process, so it is never written.
+     * The native artifact store, or null when no cache path is configured.
      */
-    public function writeNativeFor(CompiledSchema $schema): ?string
+    public function nativeRepository(): ?NativeArtifactRepository
     {
-        if ($this->cachePath === null || !$schema->fingerprint()->stable) {
+        if ($this->cachePath === null) {
             return null;
         }
 
-        $key = $this->nativeKeyFor($schema);
-        $this->writeNative($key, $schema);
-
-        $path = $this->getNativePath($key);
-
-        return file_exists($path) ? $path : null;
+        return $this->nativeRepository ??= new NativeArtifactRepository($this->cachePath . '/native', $this->nativeCompiler);
     }
 
     /**
-     * Write optimized native PHP code to file.
+     * Generate and persist the native artifact for a schema, keyed by its fingerprint.
      *
-     * If the schema contains a rule that NativeCompiler cannot inline, no
-     * file is written. SchemaValidator::validate() then finds no native
-     * artifact for this key and falls back to ValidatorEngine, so a schema
-     * can never be partially/incorrectly natively compiled.
+     * Returns the artifact path, or null when nothing was (or could be) written: no cache
+     * path configured, the schema isn't fully native-compilable, its fingerprint is
+     * unstable (it contains closures etc.) so a persisted artifact could be picked up by an
+     * unrelated schema, or the artifact couldn't be written safely. None of these are
+     * errors: validation keeps using ValidatorEngine.
      */
-    public function writeNative(string $key, CompiledSchema $schema): void
+    public function writeNativeFor(CompiledSchema $schema): ?string
     {
-        if ($this->cachePath === null) {
-            return;
-        }
-
-        $dir = $this->cachePath . '/native';
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $path = $dir . '/' . $key . '.php';
-
-        // Only write if it doesn't exist (content-hash based)
-        if (file_exists($path)) {
-            return;
+        $repository = $this->nativeRepository();
+        if ($repository === null) {
+            return null;
         }
 
         try {
-            $code = $this->nativeCompiler->compile($schema);
-        } catch (\Vi\Validation\Compilation\UnsupportedNativeRuleException) {
-            // Refuse native compilation for this schema; ValidatorEngine
-            // remains the deterministic fallback for correctness.
-            return;
+            return $repository->store($schema);
+        } catch (NativeArtifactException) {
+            return null;
         }
+    }
 
-        // Atomic write: temp file + rename
-        $tmp = $path . '.' . uniqid('', true) . '.tmp';
-        file_put_contents($tmp, $code, LOCK_EX);
-        rename($tmp, $path);
+    /**
+     * Load the verified native closure for a schema, if an artifact exists. Corrupt or
+     * mismatched artifacts are discarded and reported as absent.
+     *
+     * @return (\Closure(array<string, mixed>): array{valid: bool, errors: array<string, list<array{rule: string, params: array<string, mixed>, message: string|null}>>, excluded_fields: list<string>})|null
+     */
+    public function loadNativeFor(CompiledSchema $schema): ?\Closure
+    {
+        return $this->nativeRepository()?->loadFor($schema);
+    }
+
+    /**
+     * Write optimized native PHP code to file under an explicit key.
+     *
+     * @deprecated Use writeNativeFor(), which derives the key from the schema's fingerprint.
+     *             An artifact written under any other key is never loaded by SchemaValidator.
+     */
+    public function writeNative(string $key, CompiledSchema $schema): void
+    {
+        if ($key === $this->nativeKeyFor($schema)) {
+            $this->writeNativeFor($schema);
+        }
     }
 
     public function getNativePath(string $key): string
@@ -190,7 +188,7 @@ final class ValidatorCompiler
     }
 
     /**
-     * Clear all precompiled schemas.
+     * Clear all precompiled schemas and native artifacts.
      */
     public function clearPrecompiled(): void
     {
@@ -205,12 +203,24 @@ final class ValidatorCompiler
             }
         }
 
-        $nativeFiles = glob($this->cachePath . '/native/*.php');
-        if ($nativeFiles !== false) {
-            foreach ($nativeFiles as $file) {
-                unlink($file);
-            }
-        }
+        $this->clearNative();
+    }
+
+    /**
+     * Delete every native artifact. Returns the number removed.
+     */
+    public function clearNative(): int
+    {
+        return $this->nativeRepository()?->clear() ?? 0;
+    }
+
+    /**
+     * Delete native artifacts the current compiler/PHP version would never load (and any
+     * corrupt ones). Returns the number removed. Safe to run on every deploy.
+     */
+    public function pruneNative(): int
+    {
+        return $this->nativeRepository()?->prune() ?? 0;
     }
 
     /**

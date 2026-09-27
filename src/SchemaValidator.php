@@ -63,6 +63,8 @@ final class SchemaValidator
 
     private ?\Vi\Validation\Execution\NativeValidator $cachedNativeValidator = null;
 
+    private bool $nativeResolved = false;
+
     /**
      * @param array<string, mixed> $data
      */
@@ -72,18 +74,33 @@ final class SchemaValidator
             return $this->cachedNativeValidator->validate($data);
         }
 
-        // Check for native precompiled validator (highest speed)
-        $nativePath = $this->compiler->getNativePath($this->compiler->nativeKeyFor($this->schema));
-
-        if (file_exists($nativePath)) {
-            $closure = require $nativePath;
-            if ($closure instanceof \Closure) {
-                $this->cachedNativeValidator = new \Vi\Validation\Execution\NativeValidator($closure, $this->messageResolver);
-                return $this->cachedNativeValidator->validate($data);
-            }
+        // Look for a native precompiled validator (highest speed) exactly once per instance:
+        // the lookup hashes the schema and touches the filesystem, which must never happen
+        // per row. Loaded closures are additionally memoized per process by the repository.
+        if (!$this->nativeResolved && $this->usesNative()) {
+            /** @var \Vi\Validation\Execution\NativeValidator $native */
+            $native = $this->cachedNativeValidator;
+            return $native->validate($data);
         }
 
         return $this->engine->validate($this->schema, $data);
+    }
+
+    /**
+     * Whether validate() runs a native precompiled closure for this schema (resolving the
+     * native artifact if that hasn't happened yet).
+     */
+    public function usesNative(): bool
+    {
+        if (!$this->nativeResolved) {
+            $this->nativeResolved = true;
+            $closure = $this->compiler->loadNativeFor($this->schema);
+            if ($closure !== null) {
+                $this->cachedNativeValidator = new \Vi\Validation\Execution\NativeValidator($closure, $this->messageResolver);
+            }
+        }
+
+        return $this->cachedNativeValidator !== null;
     }
 
     /**
