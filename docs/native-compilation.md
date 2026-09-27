@@ -133,3 +133,50 @@ $compiler->clearNative();   // delete every native artifact
 
 `pruneNative()` is safe to run on every deploy. `clearPrecompiled()` also clears native
 artifacts.
+
+## Security model & trust boundaries
+
+Generated native validators are executable PHP, and the file caches hold PHP-serialized
+objects, so the trust assumptions are explicit:
+
+| Input | Trusted? | How it's handled |
+| :--- | :--- | :--- |
+| Validated **data** (request bodies, CSV rows, ...) | **Untrusted** | Never reaches code generation. It is only ever passed as the `$data` argument of an already-generated closure. |
+| **Field names** | **Untrusted** | Apps often build them from input (`"items.{$id}.qty"`). In generated code a field name only appears as a `var_export()`ed string literal; variables and `goto` labels are index-based (`$val_3`, `bail_3`), and the `//` comment carries a sanitized copy (no newlines, no `?>`). |
+| **Rule parameters** (`max:10`, `in:a,b`, ...) | Semi-trusted | Every value emitted into generated code goes through `var_export()` (numbers included: `INF`/`NAN` round-trip). Generated code is also syntax-checked before it is persisted. |
+| **Rule definitions** (which rules, custom rule classes, closures) | **Trusted** (developer-authored) | A custom rule implementing `NativeCompilableInterface` emits PHP by design, so only trusted code may implement it. Closures and non-inlinable rules never reach codegen; they run in `ValidatorEngine`. |
+| Malformed definitions | Rejected | Unknown rule names throw `UnsupportedRuleException`, and rules missing required parameters (`required_if`, `max`, `regex`, ...) throw `InvalidArgumentException`. Both fail closed, like Laravel, so a typo can never silently disable a check. In override mode an unsupported rule makes the whole rule set go to Laravel's own validator. |
+| **Cache directories** (`compilation.cache_path`, `cache.path`) | Must be writable **only by the application** | See below. |
+
+### Cache directory hardening
+
+- Artifact keys (which become file names) must match `[A-Za-z0-9_-]{1,128}`. Anything that
+  could traverse directories is rejected.
+- Temporary files are created with `fopen(..., 'x')` (exclusive create, which does not follow
+  a pre-planted file or symlink) and moved into place with `rename()`. Artifacts are
+  written `0644`, and directories are created `0755`.
+- Before a native artifact is `require`d, the repository refuses it if it is a **symlink**,
+  if it is **world-writable**, or if it sits in a **world-writable directory without the
+  sticky bit**. It also refuses files whose header/key/checksum don't verify. A refused file
+  is never executed.
+- `FileSchemaCache` and the legacy precompiled-schema files wrap their payload in an
+  integrity envelope, write atomically, and discard anything that doesn't verify **before**
+  `unserialize()` runs.
+
+### Signing key (recommended)
+
+A plain checksum only detects corruption: anyone who can write the directory can also
+compute it. Configure a secret and every native artifact, file-cached schema and
+precompiled schema is HMAC-SHA256 signed with it instead; files that don't verify are never
+`require`d or `unserialize()`d.
+
+- **Laravel:** automatic. `security.signing_key` (`FAST_VALIDATION_SIGNING_KEY`) falls back
+  to `APP_KEY`.
+- **Standalone:** pass it explicitly, for example
+  `new ValidatorCompiler($cache, $precompile, $cachePath, $secret)` or
+  `new FileSchemaCache($path, $ttl, $secret)`.
+
+Rotating the secret simply invalidates the existing files; they are regenerated on demand.
+
+Even with a signing key, keep the cache directories outside the web root and writable only by
+the application user, the same as Laravel's own compiled-views directory.

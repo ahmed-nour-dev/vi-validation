@@ -116,8 +116,8 @@ final class NativeCompiler
         $code .= "    \$hasErrors = false;\n";
         $code .= "    \$excludedFields = [];\n\n";
 
-        foreach ($schema->getFields() as $field) {
-            $code .= $this->compileField($field);
+        foreach ($schema->getFields() as $index => $field) {
+            $code .= $this->compileField($field, $index);
         }
 
         $code .= "    return [\n";
@@ -180,20 +180,24 @@ final class NativeCompiler
         return $value;
     }
 
-    private function compileField(CompiledField $field): string
+    private function compileField(CompiledField $field, int $index): string
     {
         $name = $field->getName();
-        // Create a safe label for goto
-        $safeName = preg_replace('/[^a-zA-Z0-9_]/', '_', $name);
-        $varName = '$val_' . $safeName;
-        
+        // Everything derived from the field name that ends up in generated code is either a
+        // var_export()ed string literal or an index-based identifier - never the raw name.
+        // Field names can come from request data (e.g. "items.{$id}.qty"), so they are
+        // treated as untrusted here.
+        $varName = '$val_' . $index;
+        $label = 'bail_' . $index;
+        $nameLiteral = var_export($name, true);
+
         $rules = $field->getRules();
         $rulesNames = array_map(function($r) {
             return (new ReflectionClass($r))->getShortName();
         }, $rules);
-        $rulesStr = implode('|', $rulesNames);
 
-        $code = "    // --- field: {$name} | rules: {$rulesStr} ---\n";
+        $code = '    // --- field #' . $index . ': ' . self::commentSafe($name)
+            . ' | rules: ' . self::commentSafe(implode('|', $rulesNames)) . " ---\n";
         $code .= "    {$varName} = " . $this->generateGetValueCode($field) . ";\n";
 
         $indent = "    ";
@@ -201,7 +205,7 @@ final class NativeCompiler
 
         // Handle sometimes: skip if key doesn't exist
         if ($field->isSometimes()) {
-            $code .= "{$indent}if (array_key_exists('" . addslashes($name) . "', \$data)) {\n";
+            $code .= "{$indent}if (array_key_exists({$nameLiteral}, \$data)) {\n";
             $indent .= "    ";
             $suffix = substr($indent, 0, -4) . "}\n" . $suffix;
         }
@@ -219,18 +223,18 @@ final class NativeCompiler
                 // canCompile()/findUnsupportedRules() should have caught this
                 // before compile() ever reached code generation.
                 throw new UnsupportedNativeRuleException(
-                    'Cannot natively compile rule ' . get_class($rule) . " on field '{$name}'."
+                    'Cannot natively compile rule ' . get_class($rule) . ' on field ' . $nameLiteral . '.'
                 );
             }
             $code .= $inlined;
 
             if ($field->isBail()) {
-                $code .= "{$indent}if (isset(\$errors['" . addslashes($name) . "'])) { goto bail_{$safeName}; }\n";
+                $code .= "{$indent}if (isset(\$errors[{$nameLiteral}])) { goto {$label}; }\n";
             }
         }
 
         if ($field->isBail()) {
-            $code .= "    bail_{$safeName}:\n";
+            $code .= "    {$label}:\n";
         }
 
         $code .= "{$suffix}\n";
@@ -238,19 +242,31 @@ final class NativeCompiler
         return $code;
     }
 
+    /**
+     * Reduce arbitrary text to something that can't escape a `//` comment: no newlines
+     * (which end the comment) and no `?>` (which ends PHP mode even inside a comment).
+     */
+    private static function commentSafe(string $text): string
+    {
+        return (string) preg_replace('/[^A-Za-z0-9_.*| -]/', '?', $text);
+    }
+
     private function generateGetValueCode(CompiledField $field): string
     {
         $name = $field->getName();
         if (strpos($name, '.') === false) {
-            return "\$data['" . addslashes($name) . "'] ?? null";
+            return "\$data[" . var_export($name, true) . "] ?? null";
         }
 
         $parts = explode('.', $name);
         if (count($parts) === 2) {
-             return "(isset(\$data['" . addslashes($parts[0]) . "']) && is_array(\$data['" . addslashes($parts[0]) . "'])) ? (\$data['" . addslashes($parts[0]) . "']['" . addslashes($parts[1]) . "'] ?? null) : null";
+            $parent = var_export($parts[0], true);
+            $child = var_export($parts[1], true);
+
+            return "(isset(\$data[{$parent}]) && is_array(\$data[{$parent}])) ? (\$data[{$parent}][{$child}] ?? null) : null";
         }
-        
-        return "\\Vi\\Validation\\Execution\\DataHelper::get(\$data, '" . addslashes($name) . "')";
+
+        return "\\Vi\\Validation\\Execution\\DataHelper::get(\$data, " . var_export($name, true) . ")";
     }
 
     private function inlineRule(RuleInterface $rule, string $fieldName, string $valName, string $indent): ?string

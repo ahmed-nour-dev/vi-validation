@@ -15,10 +15,17 @@ final class ValidatorCompiler
     private NativeCompiler $nativeCompiler;
     private ?NativeArtifactRepository $nativeRepository = null;
 
+    /**
+     * @param string|null $signingKey Optional secret (e.g. Laravel's APP_KEY) used to sign
+     *        native artifacts and precompiled schema files, so files planted in $cachePath by
+     *        anyone without the secret are never required/unserialized. See
+     *        docs/native-compilation.md#security-model--trust-boundaries.
+     */
     public function __construct(
         ?SchemaCacheInterface $cache = null,
         bool $precompile = false,
-        ?string $cachePath = null
+        ?string $cachePath = null,
+        private readonly ?string $signingKey = null
     ) {
         $this->cache = $cache;
         $this->precompile = $precompile;
@@ -81,7 +88,11 @@ final class ValidatorCompiler
             return null;
         }
 
-        return $this->nativeRepository ??= new NativeArtifactRepository($this->cachePath . '/native', $this->nativeCompiler);
+        return $this->nativeRepository ??= new NativeArtifactRepository(
+            $this->cachePath . '/native',
+            $this->nativeCompiler,
+            $this->signingKey
+        );
     }
 
     /**
@@ -156,7 +167,12 @@ final class ValidatorCompiler
             return null;
         }
 
-        $schema = unserialize($content);
+        $payload = \Vi\Validation\Cache\PayloadSigner::unwrap($content, $this->signingKey);
+        if ($payload === null) {
+            return null;
+        }
+
+        $schema = @unserialize($payload);
 
         return $schema instanceof CompiledSchema ? $schema : null;
     }
@@ -176,10 +192,10 @@ final class ValidatorCompiler
 
         $path = $this->getPrecompiledPath($key);
         
-        // Atomic write for legacy too
-        $tmp = $path . '.' . uniqid('', true) . '.tmp';
-        file_put_contents($tmp, serialize($schema), LOCK_EX);
-        rename($tmp, $path);
+        \Vi\Validation\Cache\PayloadSigner::writeAtomically(
+            $path,
+            \Vi\Validation\Cache\PayloadSigner::wrap(serialize($schema), $this->signingKey)
+        );
     }
 
     private function getPrecompiledPath(string $key): string

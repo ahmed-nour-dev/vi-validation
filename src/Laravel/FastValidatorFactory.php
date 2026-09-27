@@ -190,7 +190,8 @@ final class FastValidatorFactory
         if ($driver === 'file') {
             $path = $cacheConfig['path'] ?? sys_get_temp_dir() . '/vi-validation';
             $ttl = $cacheConfig['ttl'] ?? 3600;
-            $this->cache = new FileSchemaCache($path, $ttl);
+            $signingKey = $this->config['security']['signing_key'] ?? null;
+            $this->cache = new FileSchemaCache($path, $ttl, is_string($signingKey) && $signingKey !== '' ? $signingKey : null);
         } else {
             $this->cache = new ArraySchemaCache();
         }

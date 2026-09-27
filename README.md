@@ -506,6 +506,7 @@ This creates `config/fast-validation.php` with the following options (each overr
 | `cache.path` | — | `storage/framework/validation/cache` | Storage path used by the `file` cache driver. |
 | `compilation.precompile` | `FAST_VALIDATION_PRECOMPILE` | `false` | Generate and persist native PHP validator closures ahead of time for maximum throughput in production. |
 | `compilation.cache_path` | — | `storage/framework/validation/compiled` | Where precompiled native validators are stored. |
+| `security.signing_key` | `FAST_VALIDATION_SIGNING_KEY` | `APP_KEY` | Secret used to HMAC-sign cached schemas and native artifacts; unverified files are never loaded. See [security model](docs/native-compilation.md#security-model--trust-boundaries). |
 | `performance.fail_fast` | `FAST_VALIDATION_FAIL_FAST` | `false` | Stop validating a field after its first error. |
 | `performance.max_errors` | `FAST_VALIDATION_MAX_ERRORS` | `100` | Stop collecting errors after this many, to bound worst-case cost on malformed input. |
 | `performance.fast_path_rules` | `FAST_VALIDATION_FAST_PATH` | `true` | Enable optimized code paths for common rule combinations. |

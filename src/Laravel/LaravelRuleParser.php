@@ -44,6 +44,13 @@ final class LaravelRuleParser
                 continue;
             }
 
+            if (!is_string($part)) {
+                throw new UnsupportedRuleException(
+                    'Unsupported rule definition of type ' . get_debug_type($part)
+                    . ($field !== '' ? " for field [{$field}]" : '') . '.'
+                );
+            }
+
             if ($part === '') {
                 continue;
             }
@@ -52,9 +59,16 @@ final class LaravelRuleParser
 
             $rule = $this->mapRule($name, $params, $field);
 
-            if ($rule !== null) {
-                $rules[] = $rule;
+            // Fail closed: a rule that can't be built must never be silently dropped, or a
+            // malformed definition would validate *less* than the developer asked for.
+            if ($rule === null) {
+                throw new \InvalidArgumentException(
+                    "Validation rule [{$name}] is missing required parameters"
+                    . ($field !== '' ? " for field [{$field}]" : '') . '.'
+                );
             }
+
+            $rules[] = $rule;
         }
 
         return $rules;
@@ -79,7 +93,11 @@ final class LaravelRuleParser
     {
         $class = $this->registry->get($name);
         if ($class === null) {
-            return null;
+            // Laravel throws for unknown rules too (BadMethodCallException); silently ignoring
+            // them would turn a typo like "requird" into "no validation at all".
+            throw new UnsupportedRuleException(
+                "Unsupported validation rule [{$name}]" . ($field !== '' ? " for field [{$field}]" : '') . '.'
+            );
         }
 
         return match ($name) {

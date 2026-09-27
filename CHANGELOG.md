@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closure, automatic discard of corrupt artifacts with safe engine fallback, per-process
   memoization of loaded closures, and `ValidatorCompiler::clearNative()` / `pruneNative()` (#15).
 - `SchemaValidator::usesNative()` (#15).
+- Optional HMAC signing of native artifacts, file-cached schemas and precompiled schemas
+  (`security.signing_key`, defaulting to `APP_KEY` in Laravel); unverified files are never
+  `require`d or `unserialize()`d. Artifacts that are symlinks, world-writable, or in a
+  world-writable non-sticky directory are refused (#20).
+- Documented security model & trust boundaries in `docs/native-compilation.md` (#20).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is
@@ -36,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SchemaValidator::validate()` hashed the rules array and called `file_exists()` on every
   row (even with no cache path configured, probing `/native/<key>.php`); the native artifact
   is now resolved once per validator instance (#15).
+- **Security:** `NativeCompiler` wrote raw field names into a `//` comment, so a field name
+  containing a newline or `?>` injected executable PHP into the generated validator; field
+  names are now only emitted as `var_export()`ed literals with index-based
+  variables/labels. `addslashes()`-escaped keys also broke for names containing `"` or NUL
+  bytes, silently validating the wrong key (#20).
+- **Security:** unknown rule names and rules missing required parameters were silently
+  dropped (so a typo disabled validation); they now throw like Laravel. In override mode
+  such rule sets are handed to Laravel's validator, which also now receives the custom
+  messages/attributes that were previously discarded (#20).
+- `FileSchemaCache` entries stored with a TTL of 0 ("never expires") could never be read
+  back; cache writes are now atomic (#20).
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).

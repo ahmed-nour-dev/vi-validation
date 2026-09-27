@@ -82,10 +82,12 @@ class LaravelRuleParserTest extends TestCase
         $this->assertCount(3, $rules);
     }
 
-    public function testParseUnknownRuleReturnsNull(): void
+    public function testParseUnknownRuleThrowsInsteadOfSilentlySkipping(): void
     {
-        $rules = $this->parser->parse('unknown_rule');
-        $this->assertCount(0, $rules);
+        $this->expectException(\Vi\Validation\Laravel\UnsupportedRuleException::class);
+        $this->expectExceptionMessage('[unknown_rule]');
+
+        $this->parser->parse('required|unknown_rule');
     }
 
     public function testParseSizeRules(): void

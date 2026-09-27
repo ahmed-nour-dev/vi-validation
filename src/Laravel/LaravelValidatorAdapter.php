@@ -27,11 +27,16 @@ final class LaravelValidatorAdapter implements LaravelValidatorFactory
      */
     public function make(iterable $data, array $rules, array $messages = [], array $customAttributes = [])
     {
-        // For now, only use the fast engine for simple rule sets; otherwise, fall back.
-        // This can be extended later with a richer capability matrix.
-        $fastValidator = $this->fastFactory->make($data, $rules);
+        try {
+            return $this->fastFactory->make($data, $rules, $messages, $customAttributes);
+        } catch (UnsupportedRuleException) {
+            // A rule vi/validation doesn't implement (e.g. one registered with
+            // Validator::extend()): let Laravel validate the whole rule set rather than
+            // silently skipping that rule.
+            $data = is_array($data) ? $data : iterator_to_array($data);
 
-        return $fastValidator;
+            return $this->fallback->make($data, $rules, $messages, $customAttributes);
+        }
     }
 
     /**
