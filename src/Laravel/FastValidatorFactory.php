@@ -30,6 +30,10 @@ final class FastValidatorFactory
 
     private ?ValidatorCompiler $compiler = null;
 
+    private ?\Vi\Validation\Rules\DatabaseValidatorInterface $databaseValidator = null;
+
+    private ?\Vi\Validation\Rules\PasswordHasherInterface $passwordHasher = null;
+
     /** @var array{hits: int, misses: int, uncacheable: int} */
     private array $cacheStats = ['hits' => 0, 'misses' => 0, 'uncacheable' => 0];
 
@@ -116,6 +120,28 @@ final class FastValidatorFactory
     public function precompile(array $rules): ?string
     {
         return $this->compiler?->writeNativeFor($this->compile($rules));
+    }
+
+    /**
+     * Database validator used by `exists` / `unique` for every validator this factory makes.
+     * FastValidationServiceProvider sets it to Laravel's presence verifier.
+     */
+    public function setDatabaseValidator(?\Vi\Validation\Rules\DatabaseValidatorInterface $validator): self
+    {
+        $this->databaseValidator = $validator;
+
+        return $this;
+    }
+
+    /**
+     * Password hasher used by `current_password`. FastValidationServiceProvider sets it to
+     * Laravel's auth + hasher.
+     */
+    public function setPasswordHasher(?\Vi\Validation\Rules\PasswordHasherInterface $hasher): self
+    {
+        $this->passwordHasher = $hasher;
+
+        return $this;
     }
 
     /**
@@ -206,9 +232,13 @@ final class FastValidatorFactory
             $errorMode = ErrorMode::from((string) $errorMode);
         }
 
+        $engine = new ValidatorEngine($messageResolver, $failFast, $maxErrors, $errorMode);
+        $engine->setDatabaseValidator($this->databaseValidator);
+        $engine->setPasswordHasher($this->passwordHasher);
+
         return new SchemaValidator(
             $schema,
-            new ValidatorEngine($messageResolver, $failFast, $maxErrors, $errorMode),
+            $engine,
             $this->compiler,
             $messageResolver
         );

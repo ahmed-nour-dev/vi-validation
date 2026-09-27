@@ -109,6 +109,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Date rules threw `ValueError` for strings containing NUL bytes; `date` also accepted
     values `strtotime()` parses but that aren't calendar dates (e.g. `"x"`), unlike Laravel.
   - `distinct` raised "Array to string conversion" for arrays containing arrays.
+- Laravel integration gaps (#11):
+  - Laravel rule objects crashed the parser with a `TypeError`. `ValidationRule`,
+    `InvokableRule` and legacy `Rule` objects now run through `Laravel\LaravelRuleAdapter`
+    (with `DataAwareRule` and implicit-rule support), and Stringable rules (`Rule::in()`,
+    `Rule::unique()`, `Rule::requiredIf()`, ...) are parsed from their string form.
+  - Rule parameters now follow Laravel's grammar: CSV with quoting (`in:"a,b",c`), and
+    `regex`/`not_regex` as a single parameter. Commas inside a regex (`{1,3}`) used to split it.
+  - `ipv4`/`ipv6` lost their version restriction and behaved like `ip`.
+  - **`exists`/`unique` always passed through `FastValidator::make()`**: no database validator
+    was ever wired. `FastValidationServiceProvider` now backs them with Laravel's presence
+    verifier (`PresenceVerifierDatabaseValidator`, including array values and connections), and
+    without a database validator they throw instead of passing.
+  - `current_password` passed whenever no hasher was configured. It is now backed by Laravel's
+    auth + hasher (`AuthPasswordHasher`) and fails closed.
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).

@@ -24,7 +24,7 @@ final class IpRule implements RuleInterface, NativeCompilableInterface
         }
 
         if (!is_string($value)) {
-            return ['rule' => 'ip'];
+            return ['rule' => $this->ruleName()];
         }
 
         $flag = match ($this->version) {
@@ -34,7 +34,7 @@ final class IpRule implements RuleInterface, NativeCompilableInterface
         };
 
         if (filter_var($value, FILTER_VALIDATE_IP, $flag) === false) {
-            return ['rule' => 'ip'];
+            return ['rule' => $this->ruleName()];
         }
 
         return null;
@@ -50,7 +50,20 @@ final class IpRule implements RuleInterface, NativeCompilableInterface
         };
         $condition = "{$v} !== null && (!is_string({$v}) || filter_var({$v}, FILTER_VALIDATE_IP, {$flag}) === false)";
 
-        return $context->emitError($condition, 'ip');
+        return $context->emitError($condition, $this->ruleName());
+    }
+
+    /**
+     * The rule name reported on failure: 'ip', or 'ipv4'/'ipv6' for a version-restricted rule
+     * (Laravel reports - and looks up messages for - the specific rule).
+     */
+    private function ruleName(): string
+    {
+        return match ($this->version) {
+            'v4', 'ipv4' => 'ipv4',
+            'v6', 'ipv6' => 'ipv6',
+            default => 'ip',
+        };
     }
 
     public function isImplicitForNative(): bool

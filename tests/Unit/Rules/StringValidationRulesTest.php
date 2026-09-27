@@ -129,7 +129,7 @@ class StringValidationRulesTest extends TestCase
         $this->assertNull($rule->validate('192.168.1.1', 'field', $this->createContext()));
         
         $result = $rule->validate('::1', 'field', $this->createContext());
-        $this->assertEquals(['rule' => 'ip'], $result);
+        $this->assertEquals(['rule' => 'ipv4'], $result);
     }
 
     public function testIpv6OnlyRule(): void
@@ -138,6 +138,6 @@ class StringValidationRulesTest extends TestCase
         $this->assertNull($rule->validate('::1', 'field', $this->createContext()));
         
         $result = $rule->validate('192.168.1.1', 'field', $this->createContext());
-        $this->assertEquals(['rule' => 'ip'], $result);
+        $this->assertEquals(['rule' => 'ipv6'], $result);
     }
 }

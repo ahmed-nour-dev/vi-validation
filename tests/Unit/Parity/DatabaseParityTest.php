@@ -11,27 +11,15 @@ use Illuminate\Translation\Translator;
 use Illuminate\Validation\DatabasePresenceVerifier;
 use Illuminate\Validation\Factory;
 use PHPUnit\Framework\Attributes\Group;
-use Vi\Validation\Execution\ValidatorEngine;
-use Vi\Validation\Laravel\LaravelRuleParser;
-use Vi\Validation\Rules\DatabaseValidatorInterface;
-use Vi\Validation\Rules\RuleRegistry;
-use Vi\Validation\SchemaValidator;
-use Vi\Validation\Schema\SchemaBuilder;
 use Vi\Validation\Tests\Unit\Parity\Support\ParityTestCase;
 
 /**
  * Covers RuleId: exists, unique.
  *
- * KNOWN GAP (documented, not fixed by issue #5): Vi\Validation\Laravel\FastValidatorFactory
- * never wires a DatabaseValidatorInterface into the ValidatorEngine it builds, and exposes no
- * config option to supply one. That means exists/unique rule strings used through
- * FastValidator::make()/FastValidatorFactory (the actual Laravel integration surface) always
- * silently pass - ExistsRule/UniqueRule return null (success) whenever
- * ValidationContext::getDatabaseValidator() is null, regardless of real data. This test
- * exercises the rule classes and the LaravelRuleParser grammar fix directly via the lower-level
- * SchemaValidator/ValidatorEngine API (which does support setDatabaseValidator()), since that
- * is the only currently-working path to a database-backed check. See resources/
- * compatibility-matrix.json for "exists"/"unique".
+ * Runs through the real Laravel integration surface: FastValidatorFactory with Laravel's own
+ * DatabasePresenceVerifier (via PresenceVerifierDatabaseValidator), which is exactly what
+ * FastValidationServiceProvider wires up. (Before, the factory never had a database validator
+ * and exists/unique silently passed.)
  */
 #[Group('laravel')]
 class DatabaseParityTest extends ParityTestCase
@@ -73,56 +61,15 @@ class DatabaseParityTest extends ParityTestCase
 
     private function fastWithDb(array $data, array $rules): \Vi\Validation\Execution\ValidationResult
     {
-        $registry = new RuleRegistry();
-        $registry->registerBuiltInRules();
-        $parser = new LaravelRuleParser($registry);
-        $builder = new SchemaBuilder();
-        $builder->setRulesArray($rules);
+        $factory = new \Vi\Validation\Laravel\FastValidatorFactory();
+        $factory->setDatabaseValidator(new \Vi\Validation\Laravel\PresenceVerifierDatabaseValidator(
+            new DatabasePresenceVerifier($this->capsule()->getDatabaseManager())
+        ));
 
-        foreach ($rules as $field => $definition) {
-            $builder->field((string) $field)->rules(...$parser->parse($definition, (string) $field));
-        }
+        $wrapper = $factory->make($data, $rules);
+        $wrapper->passes();
 
-        $engine = new ValidatorEngine();
-        $engine->setDatabaseValidator($this->capsuleDatabaseValidator());
-
-        $validator = new SchemaValidator($builder->compile(), $engine);
-
-        return $validator->validate($data);
-    }
-
-    private function capsuleDatabaseValidator(): DatabaseValidatorInterface
-    {
-        $capsule = $this->capsule();
-
-        return new class ($capsule) implements DatabaseValidatorInterface {
-            public function __construct(private Capsule $capsule)
-            {
-            }
-
-            public function exists(string $table, string $column, mixed $value, array $extraConstraints = [], ?string $connection = null): bool
-            {
-                $query = $this->capsule->getConnection($connection)->table($table)->where($column, $value);
-                foreach ($extraConstraints as $col => $val) {
-                    $query->where($col, $val);
-                }
-
-                return $query->exists();
-            }
-
-            public function unique(string $table, string $column, mixed $value, mixed $ignoreId = null, string $idColumn = 'id', array $extraConstraints = [], ?string $connection = null): bool
-            {
-                $query = $this->capsule->getConnection($connection)->table($table)->where($column, $value);
-                if ($ignoreId !== null) {
-                    $query->where($idColumn, '!=', $ignoreId);
-                }
-                foreach ($extraConstraints as $col => $val) {
-                    $query->where($col, $val);
-                }
-
-                return !$query->exists();
-            }
-        };
+        return $wrapper->getSchemaValidator()->validate($data);
     }
 
     private function assertDbParity(array $rules, array $data): void
@@ -192,5 +139,31 @@ class DatabaseParityTest extends ParityTestCase
             ['email' => 'unique:users,email,2,id'],
             ['email' => 'ada@example.com']
         );
+    }
+
+    public function testRuleObjectsForExistsAndUnique(): void
+    {
+        $this->assertDbParity(['email' => [\Illuminate\Validation\Rule::unique('users')->ignore(1)]], ['email' => 'ada@example.com']);
+        $this->assertDbParity(['email' => [\Illuminate\Validation\Rule::unique('users')->ignore(2)]], ['email' => 'ada@example.com']);
+        $this->assertDbParity(['email' => [\Illuminate\Validation\Rule::exists('users')->where('status', 'active')]], ['email' => 'ada@example.com']);
+        $this->assertDbParity(['email' => [\Illuminate\Validation\Rule::exists('users')->where('status', 'active')]], ['email' => 'grace@example.com']);
+    }
+
+    public function testExistsWithArrayValues(): void
+    {
+        $this->assertDbParity(['ids' => 'array|exists:users,id'], ['ids' => [1, 2]]);
+        $this->assertDbParity(['ids' => 'array|exists:users,id'], ['ids' => [1, 99]]);
+    }
+
+    public function testDatabaseRulesFailClosedWithoutADatabaseValidator(): void
+    {
+        foreach (['exists:users,email', 'unique:users,email'] as $rule) {
+            try {
+                (new \Vi\Validation\Laravel\FastValidatorFactory())->make(['email' => 'x@example.com'], ['email' => $rule])->passes();
+                self::fail("{$rule} must not silently pass without a database validator");
+            } catch (\RuntimeException $e) {
+                self::assertStringContainsString('requires a database validator', $e->getMessage());
+            }
+        }
     }
 }

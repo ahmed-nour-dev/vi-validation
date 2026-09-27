@@ -489,19 +489,23 @@ exercised by a parity test.
 
 Known, currently-intentional divergences from Laravel (see the matrix for full detail on each):
 
-- **Wildcard attributes** (`items.*.sku`) and **3+-level dot nesting** (`a.b.c`) aren't
-  implemented — `CompiledField` only resolves exactly one level of `parent.child` nesting, so a
-  wildcard or deeper path never matches real data.
-- **`ipv4`/`ipv6`** rule strings currently lose their version restriction and behave like plain
-  `ip` (a known bug, not yet fixed).
+- **Wildcard attributes** (`items.*.sku`) aren't implemented; a wildcard field name never
+  matches real data. Dot paths of any depth (`a.b.c`) work like Laravel.
 - **`accepted_if`/`declined_if`/`exclude_if`/`exclude_unless`/`missing_if`/`missing_unless`**
   only support a single dependent value, where Laravel supports several
   (`accepted_if:field,v1,v2`).
 - **`exists`/`unique`** don't support the `[field]` bracket syntax for a per-row dynamic ignore
-  id, or an Eloquent model class as the table parameter. Separately, `FastValidatorFactory` has
-  no way to supply a `DatabaseValidatorInterface`, so these rules always pass when used through
-  `FastValidator::make()` today — use the lower-level `SchemaValidator`/`ValidatorEngine` API
-  (which does support `setDatabaseValidator()`) until that's wired up.
+  id, or an Eloquent model class as the table parameter. In Laravel they're backed by Laravel's
+  own presence verifier automatically. Standalone, call `setDatabaseValidator()`; without one they
+  throw instead of silently passing.
+- **`current_password`** always uses the default guard.
+
+**Laravel rule objects work too:** `Rule::in()`, `Rule::unique()->ignore()`, `Rule::exists()->where()`,
+`Rule::requiredIf()` and the other Stringable rules, plus your own `ValidationRule`, `InvokableRule`
+and legacy `Rule` classes (including `DataAwareRule` and implicit rules). Rule strings use
+Laravel's parameter grammar: `in:"a,b",c` is CSV-quoted, and `regex:/^a{1,3}$/` is a single parameter.
+An unknown rule name throws `UnsupportedRuleException`; in override mode it hands the rule set to
+Laravel's validator instead.
 
 ### 🌐 Localization & Custom Messages
 

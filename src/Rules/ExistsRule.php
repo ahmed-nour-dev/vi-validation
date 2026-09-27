@@ -37,7 +37,12 @@ final class ExistsRule implements RuleInterface
         $dbValidator = $context->getDatabaseValidator();
 
         if ($dbValidator === null) {
-            return null; // Or throw an exception? Let's assume it fails silently if not configured
+            // Fail closed, like Laravel ("Presence verifier has not been set."): silently
+            // passing would let duplicate/unknown values through.
+            throw new \RuntimeException(
+                'The [exists] rule requires a database validator. Call setDatabaseValidator() on the '
+                . 'ValidatorEngine (FastValidatorFactory wires Laravel\'s presence verifier automatically).'
+            );
         }
 
         if (!$dbValidator->exists($this->table, $this->column, $value, $this->extraConstraints, $this->connection)) {

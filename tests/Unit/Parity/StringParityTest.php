@@ -50,31 +50,13 @@ class StringParityTest extends ParityTestCase
         $this->assertParity(['addr' => 'ip'], ['addr' => 'not-an-ip']);
     }
 
-    public function testIpv4RejectsIpv6AddressInLaravelButNotFast(): void
+    public function testIpv4AndIpv6KeepTheirVersionRestriction(): void
     {
-        // Known bug, not fixed by issue #5 (see resources/compatibility-matrix.json: "ipv4").
-        // LaravelRuleParser has no case for the "ipv4" alias, so it silently builds a
-        // version-unrestricted IpRule instead of Laravel's version-restricted check.
-        $result = $this->assertDivergence(
-            ['addr' => 'ipv4'],
-            ['addr' => '::1'],
-            'ipv4 rule string loses version restriction in LaravelRuleParser; behaves like plain ip.'
-        );
-
-        self::assertTrue($result['laravel_fails'], 'Laravel correctly rejects an IPv6 address for ipv4.');
-        self::assertFalse($result['fast_fails'], 'Fast incorrectly accepts it due to the known parser bug.');
-    }
-
-    public function testIpv6RejectsIpv4AddressInLaravelButNotFast(): void
-    {
-        $result = $this->assertDivergence(
-            ['addr' => 'ipv6'],
-            ['addr' => '192.168.1.1'],
-            'ipv6 rule string loses version restriction in LaravelRuleParser; behaves like plain ip.'
-        );
-
-        self::assertTrue($result['laravel_fails'], 'Laravel correctly rejects an IPv4 address for ipv6.');
-        self::assertFalse($result['fast_fails'], 'Fast incorrectly accepts it due to the known parser bug.');
+        // Previously the ipv4/ipv6 aliases built an unrestricted IpRule and behaved like `ip`.
+        $this->assertParity(['addr' => 'ipv4'], ['addr' => '::1']);
+        $this->assertParity(['addr' => 'ipv4'], ['addr' => '192.168.1.1']);
+        $this->assertParity(['addr' => 'ipv6'], ['addr' => '192.168.1.1']);
+        $this->assertParity(['addr' => 'ipv6'], ['addr' => '2001:db8::1']);
     }
 
     public function testMacAddressPasses(): void
