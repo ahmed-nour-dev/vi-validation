@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `InvokableRule` / legacy `Rule` classes) via `Laravel\LaravelRuleAdapter`;
   `FastValidatorFactory::setDatabaseValidator()` / `setPasswordHasher()` (#11).
 - `sometimes` is a native-compilable marker, like `nullable`/`bail` (#11).
+- Reproducible benchmark suite (`benchmarks/`): deterministic user-import / order-lines ETL /
+  nested-API datasets at 1k-100k(+) rows comparing Laravel, `FastValidator::make()`, the
+  compiled engine and native execution; rows/s, peak memory, one-time compile/codegen/load
+  costs and full environment metadata in JSON + Markdown. A CI performance job
+  (`benchmarks/regression.php`) gates on same-run ratios against `benchmarks/baseline.json`.
+  The README's performance table is now generated from `benchmarks/results/reference.*` (#9).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is

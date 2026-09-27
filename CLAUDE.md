@@ -19,6 +19,11 @@ composer install                       # install dependencies
 ./vendor/bin/phpunit tests/Unit/Rules/StringValidationRulesTest.php  # run one test file
 
 ./vendor/bin/phpstan analyse -c phpstan.neon   # static analysis (level 8, src/ only)
+
+php benchmarks/run.php                  # benchmark suite (see benchmarks/README.md)
+php benchmarks/regression.php           # performance regression gate (also runs in CI)
+php tests/generate_rule_matrix.php      # regenerate docs/rules.md after editing resources/compatibility-matrix.json
+VI_FUZZ_SEED=123 ./vendor/bin/phpunit --group property   # replay a property-test failure
 ```
 
 Test suite lives entirely in `tests/Unit` (registered in `phpunit.xml`). The `tests/*.php` scripts at the

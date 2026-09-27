@@ -88,3 +88,35 @@ jobs:
 
       - name: Run full PHPUnit suite
         run: ./vendor/bin/phpunit --no-coverage
+
+  # Performance regression gate: compares vi/validation against Laravel's validator (and native
+  # against the engine) in the same process, so it is robust to runner speed. See benchmarks/README.md.
+  performance:
+    runs-on: ubuntu-latest
+    name: Performance regression gate (PHP 8.3 - Laravel 11.*)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, bcmath, intl, iconv, fileinfo
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          composer require "illuminate/validation:11.*" --no-interaction --no-update
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run regression gate
+        run: php benchmarks/regression.php
+
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression
+          path: benchmarks/results/regression.json
