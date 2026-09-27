@@ -281,6 +281,13 @@ final class ValidatorEngine
             \Vi\Validation\Rules\ProhibitedRule::class,
             \Vi\Validation\Rules\ProhibitedIfRule::class,
             \Vi\Validation\Rules\ProhibitedUnlessRule::class,
+            \Vi\Validation\Rules\PresentIfRule::class,
+            \Vi\Validation\Rules\PresentUnlessRule::class,
+            \Vi\Validation\Rules\PresentWithRule::class,
+            \Vi\Validation\Rules\PresentWithAllRule::class,
+            \Vi\Validation\Rules\ProhibitedIfAcceptedRule::class,
+            \Vi\Validation\Rules\ProhibitedIfDeclinedRule::class,
+            \Vi\Validation\Rules\RequiredIfDeclinedRule::class,
         ], true);
     }
 

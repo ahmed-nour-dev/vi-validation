@@ -28,7 +28,7 @@ final class RequiredUnlessRule implements RuleInterface
         $otherValue = $context->getValue($this->otherField);
 
         // If the other field's value is in the specified values, this field is NOT required
-        if (in_array($otherValue, $this->values, true)) {
+        if (DependentValues::matches($otherValue, $this->values)) {
             return null;
         }
 
@@ -38,7 +38,7 @@ final class RequiredUnlessRule implements RuleInterface
                 'rule' => 'required_unless',
                 'params' => [
                     'other' => $this->otherField,
-                    'values' => implode(', ', $this->values),
+                    'values' => DependentValues::describe($this->values),
                 ],
             ];
         }

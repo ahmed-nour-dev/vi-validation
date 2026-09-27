@@ -20,7 +20,10 @@ use Vi\Validation\Rules\RuleId;
  */
 class CompatibilityMatrixTest extends TestCase
 {
-    private const VALID_STATUSES = ['full', 'partial', 'divergent', 'not_applicable'];
+    private const VALID_STATUSES = ['full', 'partial', 'divergent', 'not_applicable', 'unsupported'];
+
+    /** Validator::validateX() methods that aren't rules. */
+    private const LARAVEL_NON_RULES = ['attribute', 'using_custom_rule', 'with_bag'];
 
     /** @var array<string, array{category: string, status: string, native_compilable: bool, notes: ?string}>|null */
     private static ?array $matrix = null;
@@ -174,6 +177,143 @@ class CompatibilityMatrixTest extends TestCase
             [],
             $problems,
             "Rules marked 'not_applicable' but missing an explanatory 'notes' string: " . implode(', ', $problems)
+        );
+    }
+
+    private function registry(): \Vi\Validation\Rules\RuleRegistry
+    {
+        $registry = new \Vi\Validation\Rules\RuleRegistry();
+        $registry->registerBuiltInRules();
+
+        return $registry;
+    }
+
+    public function testEngineColumnMatchesTheRuleRegistry(): void
+    {
+        $registry = $this->registry();
+        $problems = [];
+
+        foreach ($this->matrix() as $ruleName => $entry) {
+            $resolvable = $registry->get($ruleName) !== null;
+            if (($entry['engine'] ?? null) !== $resolvable) {
+                $problems[] = "{$ruleName}: engine=" . var_export($entry['engine'] ?? null, true) . ' but registry ' . ($resolvable ? 'has' : 'lacks') . ' it';
+            }
+            if (($entry['status'] === 'unsupported') === $resolvable) {
+                $problems[] = "{$ruleName}: status '{$entry['status']}' contradicts engine support";
+            }
+        }
+
+        self::assertSame([], $problems, implode('; ', $problems));
+    }
+
+    /**
+     * Native support must never be implied by engine support: the column has to equal whether
+     * the rule's class actually implements NativeCompilableInterface.
+     */
+    public function testNativeColumnMatchesNativeCompilableInterface(): void
+    {
+        $registry = $this->registry();
+        $problems = [];
+
+        foreach ($this->matrix() as $ruleName => $entry) {
+            $class = $registry->get($ruleName);
+            $native = $class !== null && is_subclass_of($class, \Vi\Validation\Rules\NativeCompilableInterface::class);
+
+            if (($entry['native_compilable'] ?? null) !== $native) {
+                $problems[] = "{$ruleName}: matrix says native_compilable=" . var_export($entry['native_compilable'] ?? null, true)
+                    . ', class ' . ($native ? 'implements' : 'does not implement') . ' NativeCompilableInterface';
+            }
+        }
+
+        self::assertSame([], $problems, implode('; ', $problems));
+    }
+
+    /**
+     * Every rule the installed Laravel validator defines must be in the matrix - so a new
+     * Laravel release that adds rules fails CI until they're implemented or listed as
+     * unsupported - and unsupported ones must really be rejected by the parser.
+     */
+    public function testEveryLaravelRuleIsAccountedFor(): void
+    {
+        $matrix = $this->matrix();
+        $missing = [];
+
+        foreach ((new \ReflectionClass(\Illuminate\Validation\Validator::class))->getMethods() as $method) {
+            if (preg_match('/^validate([A-Z]\w*)$/', $method->getName(), $m) !== 1) {
+                continue;
+            }
+            $rule = \Illuminate\Support\Str::snake($m[1]);
+            if (!in_array($rule, self::LARAVEL_NON_RULES, true) && !isset($matrix[$rule])) {
+                $missing[] = $rule;
+            }
+        }
+
+        self::assertSame([], $missing, 'Laravel rules missing from the compatibility matrix: ' . implode(', ', $missing));
+
+        foreach ($matrix as $rule => $entry) {
+            if ($entry['status'] !== 'unsupported') {
+                continue;
+            }
+            try {
+                (new \Vi\Validation\Laravel\LaravelRuleParser())->parse($rule . ':x', 'field');
+                self::fail("'{$rule}' is marked unsupported but the parser accepted it");
+            } catch (\Vi\Validation\Laravel\UnsupportedRuleException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function testEveryEntryDeclaresTheRequiredFields(): void
+    {
+        $problems = [];
+
+        foreach ($this->matrix() as $rule => $entry) {
+            foreach (['category', 'status', 'engine', 'native_compilable', 'dependencies', 'laravel_since', 'notes'] as $field) {
+                if (!array_key_exists($field, $entry)) {
+                    $problems[] = "{$rule}.{$field}";
+                }
+            }
+            if ($entry['status'] === 'partial' && empty($entry['notes'])) {
+                $problems[] = "{$rule}: partial without notes";
+            }
+        }
+
+        self::assertSame([], $problems, 'Incomplete matrix entries: ' . implode(', ', $problems));
+    }
+
+    /**
+     * The README's "Supported Rules" table advertises exactly the rules the engine supports.
+     */
+    public function testReadmeSupportedRulesMatchTheMatrix(): void
+    {
+        $readme = (string) file_get_contents(__DIR__ . '/../../../README.md');
+        $start = strpos($readme, '### 🛠 Supported Rules');
+        $end = strpos($readme, '### ✅ Parity & Compatibility');
+        self::assertNotFalse($start);
+        self::assertNotFalse($end);
+
+        preg_match_all('/`([a-z_0-9]+)`/', substr($readme, $start, $end - $start), $m);
+        $advertised = array_values(array_unique($m[1]));
+        sort($advertised);
+
+        $supported = [];
+        foreach ($this->matrix() as $rule => $entry) {
+            if ($entry['engine'] && $entry['category'] !== 'meta') {
+                $supported[] = $rule;
+            }
+        }
+        sort($supported);
+
+        self::assertSame([], array_values(array_diff($advertised, $supported)), 'README advertises rules the engine does not support');
+        self::assertSame([], array_values(array_diff($supported, $advertised)), 'Supported rules missing from the README table');
+    }
+
+    public function testGeneratedRuleDocumentIsUpToDate(): void
+    {
+        self::assertSame(
+            \Vi\Validation\Tests\Support\RuleMatrixDocument::render(),
+            (string) file_get_contents(\Vi\Validation\Tests\Support\RuleMatrixDocument::path()),
+            'docs/rules.md is stale - run `php tests/generate_rule_matrix.php`.'
         );
     }
 }

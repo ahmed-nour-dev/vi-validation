@@ -10,17 +10,19 @@ use Vi\Validation\Execution\ValidationContext;
 final class ExcludeIfRule implements RuleInterface
 {
     private string $otherField;
-    private mixed $value;
+    /** @var list<mixed> */
+    private array $values;
 
     public function __construct(string $otherField, mixed $value)
     {
         $this->otherField = $otherField;
-        $this->value = $value;
+        // One dependent value or several (Laravel: `rule:other,v1,v2,...`).
+        $this->values = is_array($value) ? array_values($value) : [$value];
     }
 
     public function shouldExclude(ValidationContext $context): bool
     {
-        return $context->getValue($this->otherField) === $this->value;
+        return DependentValues::matches($context->getValue($this->otherField), $this->values);
     }
 
     public function validate(mixed $value, string $field, ValidationContext $context): ?array

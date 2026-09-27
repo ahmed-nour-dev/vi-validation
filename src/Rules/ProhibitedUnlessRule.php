@@ -27,7 +27,7 @@ final class ProhibitedUnlessRule implements RuleInterface
     {
         $otherValue = $context->getValue($this->otherField);
 
-        if (!in_array($otherValue, $this->values, is_bool($otherValue) || $otherValue === null)) {
+        if (!DependentValues::matches($otherValue, $this->values)) {
             if (!$this->isEmpty($value)) {
                 return [
                     'rule' => 'prohibited_unless',

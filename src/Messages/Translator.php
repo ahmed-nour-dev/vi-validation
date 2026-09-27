@@ -169,6 +169,20 @@ final class Translator implements TranslatorInterface
     private function loadDefaultMessages(): void
     {
         $this->messages['en'] = [
+            'contains' => 'The :attribute field is missing a required value.',
+            'hex_color' => 'The :attribute field must be a valid hexadecimal color.',
+            'in_array' => 'The :attribute field must exist in :other.',
+            'max_digits' => 'The :attribute field must not have more than :max digits.',
+            'min_digits' => 'The :attribute field must have at least :min digits.',
+            'present_if' => 'The :attribute field must be present when :other is :value.',
+            'present_unless' => 'The :attribute field must be present unless :other is :value.',
+            'present_with' => 'The :attribute field must be present when :values is present.',
+            'present_with_all' => 'The :attribute field must be present when :values are present.',
+            'prohibited_if_accepted' => 'The :attribute field is prohibited when :other is accepted.',
+            'prohibited_if_declined' => 'The :attribute field is prohibited when :other is declined.',
+            'required_if_declined' => 'The :attribute field is required when :other is declined.',
+            'ipv4' => 'The :attribute must be a valid IPv4 address.',
+            'ipv6' => 'The :attribute must be a valid IPv6 address.',
             'required' => 'The :attribute field is required.',
             'string' => 'The :attribute must be a string.',
             'integer' => 'The :attribute must be an integer.',

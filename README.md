@@ -453,22 +453,25 @@ $schema = Validator::schema()
 
 ### 🛠 Supported Rules
 
-We support a comprehensive set of almost all standard Laravel rules.
+Every standard Laravel rule is supported (except wildcard `*` attributes); rule objects such as
+`Rule::in()` and your own `ValidationRule` classes work too. See the full
+**[rule compatibility matrix](docs/rules.md)** for engine/native support, Laravel parity status,
+dependencies and known differences for every rule.
 
 | Category | Rules |
 | :--- | :--- |
-| **Core & Presence** | `required`, `nullable`, `filled`, `present`, `missing`, `bail`, `sometimes` |
-| **Conditionals** | `required_if`, `required_unless`, `required_with`, `required_with_all`, `required_without`, `required_without_all`, `required_if_accepted`, `missing_if`, `missing_unless`, `missing_with`, `missing_with_all`, `prohibited`, `prohibited_if`, `prohibited_unless`, `prohibits`, `exclude`, `exclude_if`, `exclude_unless`, `exclude_with`, `exclude_without` |
-| **Types** | `string`, `integer`, `numeric`, `boolean`, `array`, `list`, `date`, `json`, `enum`, `decimal` |
-| **Strings** | `email`, `url`, `active_url`, `ip`, `ipv4`, `ipv6`, `mac_address`, `uuid`, `ulid`, `alpha`, `alpha_dash`, `alpha_num`, `ascii`, `regex`, `not_regex`, `starts_with`, `ends_with`, `doesnt_start_with`, `doesnt_end_with`, `lowercase`, `uppercase` |
-| **Numbers & Size** | `min`, `max`, `size`, `between`, `digits`, `digits_between`, `multiple_of` |
-| **Comparison** | `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `confirmed`, `same`, `different` |
-| **Dates** | `date_format`, `date_equals`, `after`, `after_or_equal`, `before`, `before_or_equal`, `timezone` |
-| **Arrays** | `distinct`, `required_array_keys` |
-| **Files** | `file`, `image`, `mimes`, `mimetypes`, `extensions`, `min_file_size`, `max_file_size`, `dimensions` |
-| **Acceptance** | `accepted`, `accepted_if`, `declined`, `declined_if` |
+| **Core & Presence** | `bail`, `filled`, `missing`, `nullable`, `present`, `required`, `sometimes` |
+| **Conditionals** | `accepted_if`, `declined_if`, `exclude`, `exclude_if`, `exclude_unless`, `exclude_with`, `exclude_without`, `missing_if`, `missing_unless`, `missing_with`, `missing_with_all`, `present_if`, `present_unless`, `present_with`, `present_with_all`, `prohibited`, `prohibited_if`, `prohibited_if_accepted`, `prohibited_if_declined`, `prohibited_unless`, `prohibits`, `required_if`, `required_if_accepted`, `required_if_declined`, `required_unless`, `required_with`, `required_with_all`, `required_without`, `required_without_all` |
+| **Types** | `array`, `boolean`, `date`, `decimal`, `enum`, `integer`, `json`, `list`, `numeric`, `string` |
+| **Strings** | `active_url`, `alpha`, `alpha_dash`, `alpha_num`, `ascii`, `doesnt_end_with`, `doesnt_start_with`, `email`, `ends_with`, `hex_color`, `ip`, `ipv4`, `ipv6`, `lowercase`, `mac_address`, `not_regex`, `regex`, `starts_with`, `ulid`, `uppercase`, `url`, `uuid` |
+| **Numbers & Size** | `between`, `digits`, `digits_between`, `max`, `max_digits`, `min`, `min_digits`, `multiple_of`, `size` |
+| **Comparison** | `confirmed`, `different`, `gt`, `gte`, `in`, `lt`, `lte`, `not_in`, `same` |
+| **Dates** | `after`, `after_or_equal`, `before`, `before_or_equal`, `date_equals`, `date_format`, `timezone` |
+| **Arrays** | `contains`, `distinct`, `in_array`, `required_array_keys` |
+| **Files** | `dimensions`, `extensions`, `file`, `image`, `max_file_size`, `mimes`, `mimetypes`, `min_file_size` |
+| **Acceptance** | `accepted`, `declined` |
 | **Database** | `exists`, `unique` |
-| **Auth** | `password`, `current_password` |
+| **Auth** | `current_password`, `password` |
 | **Others** | `country`, `language` |
 
 ### ✅ Parity & Compatibility
@@ -478,14 +481,26 @@ We support a comprehensive set of almost all standard Laravel rules.
 message text) — this is the safety net that lets us optimize the engine without silently
 drifting from Laravel's semantics. It covers every rule category, both execution paths
 (`ValidatorEngine` and the native-compiled path, compared automatically wherever a schema is
-native-compilable), and depth-2 nested attributes (`address.city`).
+native-compilable), and nested attributes of any depth (`address.city`, `a.b.c`).
 
 [`resources/compatibility-matrix.json`](resources/compatibility-matrix.json) is the
-machine-readable compatibility matrix: one entry per rule with its category, parity `status`
-(`full`, `partial`, `divergent`, or `not_applicable`), whether it's native-compilable, and — for
-anything other than `full` — a note explaining why. `tests/Unit/Parity/CompatibilityMatrixTest.php`
-keeps it honest: every rule must have an entry, and every `full`/`partial` entry must actually be
-exercised by a parity test.
+machine-readable compatibility matrix, rendered as **[`docs/rules.md`](docs/rules.md)**. For every
+rule it records:
+
+- whether the engine supports it;
+- whether it is natively compilable;
+- its Laravel parity status (`full`, `partial`, `divergent`, `not_applicable`, `unsupported`);
+- external dependencies (database, auth, uploaded files, network);
+- the first Laravel release that has it;
+- notes on any difference.
+
+`tests/Unit/Parity/CompatibilityMatrixTest.php` keeps it from drifting in CI:
+
+- every rule in the registry, and every rule the installed Laravel validator defines, must have an entry;
+- `engine` must match the registry, and `native_compilable` must match whether the class implements `NativeCompilableInterface`, so native support is never implied by engine support;
+- every `full`/`partial` rule must be exercised by a parity test, and `divergent` rules by a divergence test;
+- the README's Supported Rules table must list exactly the supported rules;
+- `docs/rules.md` must be regenerated (`php tests/generate_rule_matrix.php`) whenever the matrix changes.
 
 Known, currently-intentional divergences from Laravel (see the matrix for full detail on each):
 
