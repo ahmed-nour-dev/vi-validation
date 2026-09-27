@@ -524,6 +524,8 @@ Only a fixed set of rules can currently be inlined: `required`, `nullable`, `bai
 
 Native artifacts are keyed by the schema's deterministic fingerprint (`$schema->fingerprint()`), which also encodes the compiler and PHP versions — see [docs/native-compilation.md](docs/native-compilation.md) for what is and isn't part of a schema's identity.
 
+To see how any schema executes and why, including which rules keep it off the native path, call `->diagnostics()` on a `SchemaValidator` or `FastValidator::make(...)`. See [Diagnostics](docs/native-compilation.md#diagnostics).
+
 You can check ahead of time whether a schema is fully native-compilable:
 
 ```php

@@ -74,6 +74,21 @@ final class SchemaValidator
     }
 
     /**
+     * Describe how this schema executes and why: fingerprint, field/rule counts, per-field
+     * native support (with the reason for every unsupported rule), artifact status/path and
+     * the chosen strategy. Read-only: it never generates, loads or executes an artifact, and
+     * it contains no rule parameters or data. Off the hot path; costs nothing unless called.
+     */
+    public function diagnostics(): \Vi\Validation\Diagnostics\SchemaDiagnostics
+    {
+        return \Vi\Validation\Diagnostics\SchemaInspector::inspect(
+            $this->schema,
+            $this->compiler,
+            $this->nativeResolved ? $this->cachedNativeValidator !== null : null
+        );
+    }
+
+    /**
      * Resolve the execution strategy now instead of on the first validate() call: load the
      * schema's native artifact, generating it first when `precompile` is enabled. Call it at
      * boot/deploy time (or when a queue worker starts) so the first real row pays nothing.

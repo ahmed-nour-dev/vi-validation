@@ -35,6 +35,7 @@ final class RuleSetCompiler
      */
     public function compile(array $rules): CompiledSchema
     {
+        $start = hrtime(true);
         $builder = new SchemaBuilder();
         $builder->setRulesArray($rules);
 
@@ -61,6 +62,9 @@ final class RuleSetCompiler
             $builder->field((string) $field)->rules(...$parsedRules);
         }
 
-        return $builder->compile();
+        $schema = $builder->compile();
+        $schema->recordCompileTime((hrtime(true) - $start) / 1e6);
+
+        return $schema;
     }
 }

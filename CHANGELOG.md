@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plus `tests/benchmark_lifecycle.php` separating one-time from steady-state costs (#16).
 - `nullable` and `bail` are native-compilable, so most real-world schemas can now run natively
   (2.3x the engine's throughput in the lifecycle benchmark) (#16).
+- Schema diagnostics: `SchemaValidator::diagnostics()`, `FastValidatorWrapper::diagnostics()`
+  and `FastValidatorFactory::diagnose()` return a `SchemaDiagnostics` report (fingerprint,
+  counts, per-field native support with reasons, artifact status/path, strategy, versions,
+  compile time) that never includes rule parameters or data; plus
+  `FastValidatorFactory::cacheStats()` and `NativeArtifactRepository::stats()` (#18).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is

@@ -43,6 +43,9 @@ final class NativeArtifactRepository
     /** @var array<string, Closure> directory|key => verified closure */
     private static array $loaded = [];
 
+    /** @var array{generated: int, loaded: int, memory_hits: int, rejected: int} */
+    private static array $stats = ['generated' => 0, 'loaded' => 0, 'memory_hits' => 0, 'rejected' => 0];
+
     private string $directory;
 
     /**
@@ -153,6 +156,8 @@ final class NativeArtifactRepository
                 @opcache_invalidate($path, true);
             }
 
+            self::$stats['generated']++;
+
             return $path;
         } finally {
             if ($lock !== false) {
@@ -174,6 +179,7 @@ final class NativeArtifactRepository
     {
         $memoKey = $this->memoKey($key);
         if (isset(self::$loaded[$memoKey])) {
+            self::$stats['memory_hits']++;
             /** @phpstan-ignore-next-line verified at first load */
             return self::$loaded[$memoKey];
         }
@@ -194,9 +200,12 @@ final class NativeArtifactRepository
 
         $closure = $this->verifyAndRequire($path, $key);
         if ($closure === null) {
+            self::$stats['rejected']++;
             $this->discard($path);
             return null;
         }
+
+        self::$stats['loaded']++;
 
         /** @phpstan-ignore-next-line verified above */
         return self::$loaded[$memoKey] = $closure;
@@ -238,6 +247,22 @@ final class NativeArtifactRepository
                 || ($header['compiler'] ?? null) !== NativeCompiler::COMPILER_VERSION
                 || ($header['php'] ?? null) !== (string) PHP_VERSION_ID;
         });
+    }
+
+    /**
+     * Process-wide artifact counters: artifacts generated, loaded (verified + required) from
+     * disk, served from the in-memory memo, and rejected as corrupt/untrusted.
+     *
+     * @return array{generated: int, loaded: int, memory_hits: int, rejected: int}
+     */
+    public static function stats(): array
+    {
+        return self::$stats;
+    }
+
+    public static function resetStats(): void
+    {
+        self::$stats = ['generated' => 0, 'loaded' => 0, 'memory_hits' => 0, 'rejected' => 0];
     }
 
     /**
