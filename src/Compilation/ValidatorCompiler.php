@@ -71,6 +71,16 @@ final class ValidatorCompiler
     }
 
     /**
+     * Whether a missing native artifact should be generated on first use (the
+     * `compilation.precompile` option). When false, existing artifacts - e.g. generated at
+     * deploy time - are still loaded, but none are generated at runtime.
+     */
+    public function isPrecompileEnabled(): bool
+    {
+        return $this->precompile && $this->cachePath !== null;
+    }
+
+    /**
      * The key a schema's native artifact is stored under: its fingerprint's artifactKey,
      * which already folds in the compiler version and PHP_VERSION_ID.
      */

@@ -70,6 +70,14 @@ final class FastValidatorWrapper implements LaravelValidatorContract
         return $this->materializedData;
     }
 
+    /**
+     * The underlying SchemaValidator (schema, engine, native compiler) this wrapper runs.
+     */
+    public function getSchemaValidator(): SchemaValidator
+    {
+        return $this->validator;
+    }
+
     public function fails(): bool
     {
         return !$this->passes();
@@ -165,18 +173,17 @@ final class FastValidatorWrapper implements LaravelValidatorContract
         }
 
         if ($changed) {
-            // Re-build validator with new rules
-            $parser = new LaravelRuleParser($this->registry);
-            $builder = new \Vi\Validation\Schema\SchemaBuilder();
-            $builder->setRulesArray($rulesArray);
+            // Re-build the schema with the extra rules, keeping this validator's engine
+            // (fail-fast/max-errors), message resolver (custom messages/attributes) and
+            // native compiler - previously all of those were silently reset to defaults.
+            $schema = (new RuleSetCompiler($this->registry))->compile($rulesArray);
 
-            foreach ($rulesArray as $field => $definition) {
-                $fieldBuilder = $builder->field($field);
-                $parsedRules = $parser->parse($definition, (string) $field);
-                $fieldBuilder->rules(...$parsedRules);
-            }
-
-            $this->validator = new SchemaValidator($builder->compile());
+            $this->validator = new SchemaValidator(
+                $schema,
+                $this->validator->getEngine(),
+                $this->validator->getCompiler(),
+                $this->validator->getMessageResolver()
+            );
         }
 
         $this->conditionalRules = [];

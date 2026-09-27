@@ -7,17 +7,14 @@ namespace Vi\Validation\Laravel;
 use Vi\Validation\Cache\ArraySchemaCache;
 use Vi\Validation\Cache\FileSchemaCache;
 use Vi\Validation\Cache\SchemaCacheInterface;
+use Vi\Validation\Compilation\ValidatorCompiler;
 use Vi\Validation\Execution\CompiledSchema;
 use Vi\Validation\Execution\ValidatorEngine;
 use Vi\Validation\Messages\MessageResolver;
 use Vi\Validation\Messages\Translator;
-use Vi\Validation\Schema\SchemaBuilder;
 use Vi\Validation\SchemaValidator;
 
 use Vi\Validation\Rules\RuleRegistry;
-use Vi\Validation\Rules\IntegerTypeRule;
-use Vi\Validation\Rules\NumericRule;
-use Vi\Validation\Rules\NumericAwareInterface;
 
 final class FastValidatorFactory
 {
@@ -27,6 +24,10 @@ final class FastValidatorFactory
     private ?SchemaCacheInterface $cache = null;
 
     private RuleRegistry $registry;
+
+    private RuleSetCompiler $ruleSetCompiler;
+
+    private ?ValidatorCompiler $compiler = null;
 
     /**
      * @param array<string, mixed> $config
@@ -41,7 +42,10 @@ final class FastValidatorFactory
             $this->registry->registerBuiltInRules();
         }
 
+        $this->ruleSetCompiler = new RuleSetCompiler($this->registry);
+
         $this->initializeCache();
+        $this->initializeCompiler();
     }
 
     /**
@@ -65,6 +69,73 @@ final class FastValidatorFactory
 
 
     /**
+     * Build (or fetch from the schema cache) the compiled schema for a rules array.
+     *
+     * @param array<string, mixed> $rules
+     */
+    public function compile(array $rules): CompiledSchema
+    {
+        $cacheKey = $this->generateCacheKey($rules);
+
+        if ($this->cache !== null && $cacheKey !== null) {
+            $cached = $this->cache->get($cacheKey);
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
+        $schema = $this->ruleSetCompiler->compile($rules);
+
+        if ($this->cache !== null && $cacheKey !== null) {
+            $ttl = $this->config['cache']['ttl'] ?? 3600;
+            $this->cache->put($cacheKey, $schema, $ttl);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Ahead-of-time: generate and persist the native artifact for a rules array (e.g. from a
+     * deploy script or a service provider's boot()), so no request ever pays for code
+     * generation. Works whether or not `compilation.precompile` is enabled; requires
+     * `compilation.cache_path`.
+     *
+     * Returns the artifact path, or null if the rules can't be natively compiled (the engine
+     * is used for them) or no cache path is configured.
+     *
+     * @param array<string, mixed> $rules
+     */
+    public function precompile(array $rules): ?string
+    {
+        return $this->compiler?->writeNativeFor($this->compile($rules));
+    }
+
+    /**
+     * The native compiler/artifact store configured from `compilation.*`, if any.
+     */
+    public function getCompiler(): ?ValidatorCompiler
+    {
+        return $this->compiler;
+    }
+
+    /**
+     * Delete every generated native artifact. Returns the number removed.
+     */
+    public function clearCompiled(): int
+    {
+        return $this->compiler?->clearNative() ?? 0;
+    }
+
+    /**
+     * Delete native artifacts the current compiler/PHP version would never load. Returns the
+     * number removed. Safe to run on every deploy.
+     */
+    public function pruneCompiled(): int
+    {
+        return $this->compiler?->pruneNative() ?? 0;
+    }
+
+    /**
      * Get or create schema cache instance.
      */
     public function getCache(): ?SchemaCacheInterface
@@ -82,56 +153,7 @@ final class FastValidatorFactory
         array $messages = [],
         array $attributes = []
     ): SchemaValidator {
-        $cacheKey = $this->generateCacheKey($rules);
-
-        // Try to get from cache
-        if ($this->cache !== null && $cacheKey !== null) {
-            $cached = $this->cache->get($cacheKey);
-            if ($cached !== null) {
-                return $this->createValidatorWithSchema($cached, $messages, $attributes);
-            }
-        }
-
-        // Build schema
-        $parser = new LaravelRuleParser($this->registry);
-        $builder = new SchemaBuilder();
-        $builder->setRulesArray($rules);
-
-        foreach ($rules as $field => $definition) {
-            $fieldBuilder = $builder->field($field);
-            $parsedRules = $parser->parse($definition, (string) $field);
-            
-            // Check for numeric context
-            $isNumeric = false;
-            foreach ($parsedRules as $rule) {
-                $ruleClass = get_class($rule);
-                if ($ruleClass === \Vi\Validation\Rules\IntegerTypeRule::class || $ruleClass === \Vi\Validation\Rules\NumericRule::class) {
-                    $isNumeric = true;
-                    break;
-                }
-            }
-            
-            // Apply numeric context to aware rules
-            if ($isNumeric) {
-                foreach ($parsedRules as $rule) {
-                    if ($rule instanceof NumericAwareInterface) {
-                        $rule->setNumeric(true);
-                    }
-                }
-            }
-
-            $fieldBuilder->rules(...$parsedRules);
-        }
-
-        $schema = $builder->compile();
-
-        // Cache the schema
-        if ($this->cache !== null && $cacheKey !== null) {
-            $ttl = $this->config['cache']['ttl'] ?? 3600;
-            $this->cache->put($cacheKey, $schema, $ttl);
-        }
-
-        return $this->createValidatorWithSchema($schema, $messages, $attributes);
+        return $this->createValidatorWithSchema($this->compile($rules), $messages, $attributes);
     }
 
     /**
@@ -143,17 +165,26 @@ final class FastValidatorFactory
         array $messages = [],
         array $attributes = []
     ): SchemaValidator {
-        // Create engine with custom messages/attributes
-        $engine = $this->createEngine($messages, $attributes);
+        $messageResolver = $this->createMessageResolver($messages, $attributes);
 
-        return new SchemaValidator($schema, $engine);
+        $failFast = (bool) ($this->config['performance']['fail_fast'] ?? false);
+        $maxErrors = (int) ($this->config['performance']['max_errors'] ?? 100);
+
+        // The same resolver goes to the engine *and* the SchemaValidator (native path), so
+        // custom messages/attributes apply whichever path executes.
+        return new SchemaValidator(
+            $schema,
+            new ValidatorEngine($messageResolver, $failFast, $maxErrors),
+            $this->compiler,
+            $messageResolver
+        );
     }
 
     /**
      * @param array<string, string> $messages
      * @param array<string, string> $attributes
      */
-    private function createEngine(array $messages = [], array $attributes = []): ValidatorEngine
+    private function createMessageResolver(array $messages = [], array $attributes = []): MessageResolver
     {
         $locale = $this->config['localization']['locale'] ?? 'en';
         $fallbackLocale = $this->config['localization']['fallback_locale'] ?? 'en';
@@ -171,10 +202,26 @@ final class FastValidatorFactory
             $messageResolver->setCustomAttributes($attributes);
         }
 
-        $failFast = $this->config['performance']['fail_fast'] ?? false;
-        $maxErrors = $this->config['performance']['max_errors'] ?? 100;
+        return $messageResolver;
+    }
 
-        return new ValidatorEngine($messageResolver, $failFast, $maxErrors);
+    private function initializeCompiler(): void
+    {
+        $compilation = $this->config['compilation'] ?? [];
+        $cachePath = $compilation['cache_path'] ?? null;
+
+        if (!is_string($cachePath) || $cachePath === '') {
+            return;
+        }
+
+        $signingKey = $this->config['security']['signing_key'] ?? null;
+
+        $this->compiler = new ValidatorCompiler(
+            null,
+            (bool) ($compilation['precompile'] ?? false),
+            $cachePath,
+            is_string($signingKey) && $signingKey !== '' ? $signingKey : null
+        );
     }
 
     private function initializeCache(): void
