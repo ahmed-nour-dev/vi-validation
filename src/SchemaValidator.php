@@ -7,6 +7,7 @@ namespace Vi\Validation;
 use Generator;
 use Vi\Validation\Execution\CompiledSchema;
 use Vi\Validation\Execution\ValidatorEngine;
+use Vi\Validation\Execution\ValidationFailure;
 use Vi\Validation\Execution\ValidationResult;
 use Vi\Validation\Schema\SchemaBuilder;
 
@@ -197,8 +198,38 @@ final class SchemaValidator
      */
     public function firstFailure(iterable $rows): ?ValidationResult
     {
-        foreach ($this->failures($rows) as $result) {
-            return $result;
+        return $this->firstFailureWithIndex($rows)?->result;
+    }
+
+    /**
+     * Validate rows until the first failure, then stop, returning the failed result
+     * together with the row's position and source key.
+     *
+     * Unlike firstFailure(), the caller learns *which* row failed without re-validating
+     * anything - essential for import error reports ("row 1,284: email is invalid").
+     *
+     * Usage:
+     * ```php
+     * if ($failure = $validator->firstFailureWithIndex($rows)) {
+     *     echo "Row {$failure->index} failed: " . $failure->result->first();
+     * }
+     * ```
+     *
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @return ValidationFailure|null The first failure, or null if every row passes
+     */
+    public function firstFailureWithIndex(iterable $rows): ?ValidationFailure
+    {
+        $index = 0;
+
+        foreach ($rows as $key => $row) {
+            $result = $this->validate($row);
+
+            if (!$result->isValid()) {
+                return new ValidationFailure($index, $key, $result);
+            }
+
+            $index++;
         }
 
         return null;

@@ -467,6 +467,16 @@ final class FastValidatorWrapper implements LaravelValidatorContract
     }
 
     /**
+     * Validate rows until the first failure, returning it with its row index and source key.
+     *
+     * @param iterable<array-key, array<string, mixed>>|null $rows Rows to validate, or null to use wrapper's data
+     */
+    public function firstFailureWithIndex(?iterable $rows = null): ?\Vi\Validation\Execution\ValidationFailure
+    {
+        return $this->validator->firstFailureWithIndex($rows ?? $this->data);
+    }
+
+    /**
      * Check if all rows pass validation without storing results.
      *
      * Memory-efficient way to validate entire dataset. Stops at first failure.

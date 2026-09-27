@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit PHP/Laravel compatibility matrix: CI now runs a `--prefer-lowest` dependency job
   and clearly-named Laravel-integration/native-compilation PHPUnit testsuites per matrix cell,
   and the supported combinations are documented in a new README "Compatibility" section.
+- `SchemaValidator::firstFailureWithIndex()` (and `FastValidatorWrapper::firstFailureWithIndex()`)
+  returning a `ValidationFailure` value object carrying the failing row's zero-based `index`, the
+  source iterable's own `key`, and its `ValidationResult` (#12).
 
 ## [0.1.0] - 2026-02-04
 
