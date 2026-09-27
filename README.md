@@ -235,6 +235,39 @@ $allGood = $validator->allValid($rows);
 
 > ⚠️ `validateMany()` materializes every result in memory — reach for it only on small datasets. Prefer `stream()`, `each()`, or `failures()` for anything with more than a few thousand rows.
 
+**Streaming guarantees**
+
+- **Lazy, never materialized.** Arrays, generators, iterators, DB cursors and Laravel `LazyCollection`s are consumed one row at a time: each result is yielded before the next row is read. `ChunkedValidator::streamFailures()` / `countFailures()` don't buffer either.
+- **Bounded memory.** Memory added by validation is bounded by one row and its result, not by the dataset size, as long as you don't keep the results. A `ValidationResult` holds its row's data and errors, so keep only what you need, such as the key and `errors()`.
+- **Immutable results.** Each yielded `ValidationResult` is an independent value; validating later rows never changes an earlier result.
+- **Safe early exit.** `break`ing out of a stream, or an exception thrown by the source mid-stream, leaves the validator immediately reusable.
+- **Your keys, if you want them.** Pass `preserveKeys: true` to `stream()`, `failures()`, `each()` or `ChunkedValidator::streamFailures()` to receive the source's own keys (a generator's `yield $lineNo => $row`, a keyed array, primary keys) instead of zero-based positions.
+
+```php
+// CSV import keyed by line number, streamed straight from disk.
+$rows = (function () use ($handle, $header) {
+    $line = 1;
+    while (($fields = fgetcsv($handle)) !== false) {
+        yield ++$line => array_combine($header, $fields);
+    }
+})();
+
+foreach ($validator->failures($rows, preserveKeys: true) as $line => $result) {
+    $report[] = "Line {$line}: " . $result->first();
+}
+```
+
+Memory and throughput from `php tests/benchmark_streaming.php`: a generator source, 4 fields, 5% invalid rows, PHP 8.4 CLI, OPcache and JIT off. "Peak added" is the peak memory validation added on top of the baseline:
+
+| Rows | Path | `stream()` rows/s | `stream()` peak added | `validateMany()` peak added |
+| ---: | :--- | ---: | ---: | ---: |
+| 10,000 | engine | 235,214 | 79 KB (first-run warm-up) | 6.3 MB |
+| 100,000 | engine | 241,650 | 3.3 KB | 62.2 MB |
+| 1,000,000 | engine | 231,709 | 3.3 KB | — |
+| 10,000 | native | 550,461 | 4.3 KB | 6.0 MB |
+| 100,000 | native | 534,114 | 4.3 KB | 59.5 MB |
+| 1,000,000 | native | 502,146 | 4.3 KB | — |
+
 ### 📦 Chunked & Batch Validation
 
 For ETL jobs and imports, `ChunkedValidator` processes rows in fixed-size batches so you can, for example, bulk-insert valid rows into a database chunk-by-chunk:

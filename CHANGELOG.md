@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts, per-field native support with reasons, artifact status/path, strategy, versions,
   compile time) that never includes rule parameters or data; plus
   `FastValidatorFactory::cacheStats()` and `NativeArtifactRepository::stats()` (#18).
+- `preserveKeys` option for `stream()`, `failures()`, `each()` (on `SchemaValidator` and
+  `FastValidatorWrapper`) and `ChunkedValidator::streamFailures()`, yielding the source's own
+  keys; streaming guarantees documented; `tests/benchmark_streaming.php` publishes memory
+  alongside throughput for 10k/100k/1M rows (#17).
 
 ### Fixed
 - All fluent-built schemas shared a single native artifact key (their raw rules array is
@@ -73,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `min`/`max` (#16).
 - Native validators omitted `params` from errors without parameters; error arrays now have
   the same shape as the engine's (#16).
+- `ChunkedValidator::streamFailures()` buffered up to `$chunkSize` rows before yielding the
+  first failure, and `countFailures()` materialized every chunk's results; both now stream
+  row by row with no buffering (#17).
 
 ### Deprecated
 - `NativeCompiler::generateKey()`; use `ValidatorCompiler::nativeKeyFor()` (#19).

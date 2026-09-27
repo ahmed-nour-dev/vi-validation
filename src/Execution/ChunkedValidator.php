@@ -81,46 +81,35 @@ final class ChunkedValidator
     }
 
     /**
-     * Validate rows and yield only failures, processing in memory-efficient chunks.
+     * Validate rows and yield only failures with their original row index.
      *
-     * Ideal for error reporting where you only care about failures.
+     * Rows are validated one at a time as they are read; nothing is buffered, so memory is
+     * bounded by a single row regardless of $chunkSize (kept for backwards compatibility).
      *
-     * @param iterable<array<string, mixed>> $rows
-     * @param positive-int $chunkSize
-     * @return Generator<int, ValidationResult> Yields failed results with their original row index
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @param positive-int $chunkSize Unused; failures are streamed row by row.
+     * @param bool $preserveKeys Key failures by the source's own keys instead of zero-based position.
+     * @return Generator<array-key, ValidationResult> Yields failed results with their original row index
      */
-    public function streamFailures(iterable $rows, int $chunkSize = 1000): Generator
+    public function streamFailures(iterable $rows, int $chunkSize = 1000, bool $preserveKeys = false): Generator
     {
-        $globalIndex = 0;
-        $buffer = [];
-
-        foreach ($rows as $row) {
-            $buffer[] = ['index' => $globalIndex, 'data' => $row];
-            $globalIndex++;
-
-            if (count($buffer) >= $chunkSize) {
-                yield from $this->yieldFailuresFromBuffer($buffer);
-                $buffer = [];
-            }
-        }
-
-        if ($buffer !== []) {
-            yield from $this->yieldFailuresFromBuffer($buffer);
-        }
+        yield from $this->validator->failures($rows, $preserveKeys);
     }
 
     /**
-     * Count total failures without storing all results in memory.
+     * Count total failures without storing any results.
      *
      * @param iterable<array<string, mixed>> $rows
-     * @param positive-int $chunkSize
+     * @param positive-int $chunkSize Unused; rows are counted as they stream.
      */
     public function countFailures(iterable $rows, int $chunkSize = 1000): int
     {
         $failureCount = 0;
 
-        foreach ($this->streamChunks($rows, $chunkSize) as $batchResult) {
-            $failureCount += $batchResult->failureCount();
+        foreach ($rows as $row) {
+            if (!$this->validator->validate($row)->isValid()) {
+                $failureCount++;
+            }
         }
 
         return $failureCount;
@@ -134,20 +123,5 @@ final class ChunkedValidator
     {
         $results = $this->validator->validateMany($buffer);
         $onChunk($chunkIndex, $results);
-    }
-
-    /**
-     * @param list<array{index: int, data: array<string, mixed>}> $buffer
-     * @return Generator<int, ValidationResult>
-     */
-    private function yieldFailuresFromBuffer(array $buffer): Generator
-    {
-        foreach ($buffer as $item) {
-            $result = $this->validator->validate($item['data']);
-
-            if (!$result->isValid()) {
-                yield $item['index'] => $result;
-            }
-        }
     }
 }

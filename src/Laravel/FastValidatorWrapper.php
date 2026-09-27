@@ -414,11 +414,12 @@ final class FastValidatorWrapper implements LaravelValidatorContract
      * ```
      *
      * @param iterable<array<string, mixed>>|null $rows Rows to validate, or null to use wrapper's data
-     * @return Generator<int, ValidationResult>
+     * @param bool $preserveKeys Yield the source's own keys instead of zero-based positions
+     * @return Generator<array-key, ValidationResult>
      */
-    public function stream(?iterable $rows = null): Generator
+    public function stream(?iterable $rows = null, bool $preserveKeys = false): Generator
     {
-        return $this->validator->stream($rows ?? $this->data);
+        return $this->validator->stream($rows ?? $this->data, $preserveKeys);
     }
 
     /**
@@ -443,14 +444,14 @@ final class FastValidatorWrapper implements LaravelValidatorContract
      * ```
      *
      * @param iterable<array<string, mixed>>|callable $rowsOrCallback Rows to validate, or callback when using wrapper's data
-     * @param callable(ValidationResult $result, int $index): void|null $callback
+     * @param callable(ValidationResult $result, int|string $index): void|null $callback
      */
-    public function each(iterable|callable $rowsOrCallback, ?callable $callback = null): void
+    public function each(iterable|callable $rowsOrCallback, ?callable $callback = null, bool $preserveKeys = false): void
     {
         if (is_callable($rowsOrCallback)) {
-            $this->validator->each($this->data, $rowsOrCallback);
+            $this->validator->each($this->data, $rowsOrCallback, $preserveKeys);
         } elseif ($callback !== null) {
-            $this->validator->each($rowsOrCallback, $callback);
+            $this->validator->each($rowsOrCallback, $callback, $preserveKeys);
         }
     }
 
@@ -463,9 +464,9 @@ final class FastValidatorWrapper implements LaravelValidatorContract
      * @param iterable<array<string, mixed>>|null $rows Rows to validate, or null to use wrapper's data
      * @return Generator<int, ValidationResult> Yields only failed validation results with their original index
      */
-    public function failures(?iterable $rows = null): Generator
+    public function failures(?iterable $rows = null, bool $preserveKeys = false): Generator
     {
-        return $this->validator->failures($rows ?? $this->data);
+        return $this->validator->failures($rows ?? $this->data, $preserveKeys);
     }
 
     /**
