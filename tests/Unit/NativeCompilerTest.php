@@ -134,9 +134,9 @@ class NativeCompilerTest extends TestCase
 
         try {
             $validatorCompiler = new ValidatorCompiler(null, false, $cacheDir);
-            $key = NativeCompiler::generateKey($schema->getRulesArray());
+            $key = $validatorCompiler->nativeKeyFor($schema);
 
-            $validatorCompiler->writeNative($key, $schema);
+            $validatorCompiler->writeNativeFor($schema);
 
             $this->assertFileDoesNotExist($validatorCompiler->getNativePath($key));
         } finally {
@@ -156,9 +156,9 @@ class NativeCompilerTest extends TestCase
 
         try {
             $validatorCompiler = new ValidatorCompiler(null, false, $cacheDir);
-            $key = NativeCompiler::generateKey($schema->getRulesArray());
+            $key = $validatorCompiler->nativeKeyFor($schema);
 
-            $validatorCompiler->writeNative($key, $schema);
+            $validatorCompiler->writeNativeFor($schema);
 
             $nativePath = $validatorCompiler->getNativePath($key);
             $this->assertFileExists($nativePath);

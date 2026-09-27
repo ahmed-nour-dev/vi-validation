@@ -521,6 +521,8 @@ When `compilation.precompile` (or a `cache_path` passed to `ValidatorCompiler`) 
 
 Only a fixed set of rules can currently be inlined: `required`, `string`, `integer`, `numeric`, `boolean`, `array`, `email`, `url`, `ip`, `json`, `min`, `max`, `alpha`, `alpha_num`, and `alpha_dash`. If a schema contains any other rule (e.g. `in`, `regex`, `unique`, `distinct`, database rules, closures, ...), `NativeCompiler::compile()` throws `UnsupportedNativeRuleException` instead of silently dropping the rule. `ValidatorCompiler::writeNative()` catches this and simply does not write a native artifact for that schema — `SchemaValidator::validate()` then finds no cached native file and transparently falls back to `ValidatorEngine`, so the exact same schema always produces the exact same result whether or not it happened to be native-compilable.
 
+Native artifacts are keyed by the schema's deterministic fingerprint (`$schema->fingerprint()`), which also encodes the compiler and PHP versions — see [docs/native-compilation.md](docs/native-compilation.md) for what is and isn't part of a schema's identity.
+
 You can check ahead of time whether a schema is fully native-compilable:
 
 ```php

@@ -83,9 +83,9 @@ final class FastValidatorFactory
         array $attributes = []
     ): SchemaValidator {
         $cacheKey = $this->generateCacheKey($rules);
-        
+
         // Try to get from cache
-        if ($this->cache !== null) {
+        if ($this->cache !== null && $cacheKey !== null) {
             $cached = $this->cache->get($cacheKey);
             if ($cached !== null) {
                 return $this->createValidatorWithSchema($cached, $messages, $attributes);
@@ -126,7 +126,7 @@ final class FastValidatorFactory
         $schema = $builder->compile();
 
         // Cache the schema
-        if ($this->cache !== null) {
+        if ($this->cache !== null && $cacheKey !== null) {
             $ttl = $this->config['cache']['ttl'] ?? 3600;
             $this->cache->put($cacheKey, $schema, $ttl);
         }
@@ -197,35 +197,53 @@ final class FastValidatorFactory
     }
 
     /**
+     * Content-based cache key for a rules array, or null when the rules can't be identified
+     * by content and therefore must not be cached at all.
+     *
+     * Closures and non-serializable rule objects used to be keyed by spl_object_id(), but
+     * PHP reuses object ids as soon as an object is freed: a later request passing a
+     * *different* closure/rule object could then hit the earlier request's cached schema
+     * (in the array cache) or another process's (in the file cache) and validate with the
+     * wrong rules. Such rule sets are now rebuilt every time instead.
+     *
      * @param array<string, mixed> $rules
      */
-    private function generateCacheKey(array $rules): string
+    private function generateCacheKey(array $rules): ?string
     {
-        return md5($this->serializeRules($rules));
+        $serialized = $this->serializeRules($rules);
+
+        return $serialized === null ? null : hash('sha256', $serialized);
     }
 
     /**
-     * Serialize rules for cache key generation, handling closures and objects.
+     * Serialize rules for cache key generation; null if any part has no stable identity.
      */
-    private function serializeRules(mixed $value): string
+    private function serializeRules(mixed $value): ?string
     {
         if ($value instanceof \Closure) {
-            // Closures get a unique ID - effectively disables caching for rules with closures
-            return 'closure:' . spl_object_id($value);
+            return null;
         }
 
         if (is_object($value)) {
-            return get_class($value) . ':' . spl_object_id($value);
+            try {
+                return 'o:' . get_class($value) . ':' . serialize($value);
+            } catch (\Throwable) {
+                return null;
+            }
         }
 
         if (is_array($value)) {
             $parts = [];
             foreach ($value as $key => $item) {
-                $parts[] = $key . ':' . $this->serializeRules($item);
+                $part = $this->serializeRules($item);
+                if ($part === null) {
+                    return null;
+                }
+                $parts[] = (is_int($key) ? 'i' : 's') . strlen((string) $key) . ':' . $key . '=' . $part;
             }
             return '[' . implode(',', $parts) . ']';
         }
 
-        return (string) $value;
+        return get_debug_type($value) . ':' . var_export($value, true);
     }
 }

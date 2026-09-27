@@ -157,6 +157,25 @@ final class CompiledField
         return $this->isAlwaysExcluded || $this->exclusionRules !== [];
     }
 
+    /**
+     * Whether the field carries an unconditional `exclude` rule.
+     */
+    public function isAlwaysExcluded(): bool
+    {
+        return $this->isAlwaysExcluded;
+    }
+
+    /**
+     * The conditional exclude_if/exclude_unless/exclude_with/exclude_without rules, which
+     * are consumed out of getRules() at compile time.
+     *
+     * @return list<RuleInterface>
+     */
+    public function getExclusionRules(): array
+    {
+        return $this->exclusionRules;
+    }
+
     public function shouldExclude(ValidationContext $context): bool
     {
         if ($this->isAlwaysExcluded) {
