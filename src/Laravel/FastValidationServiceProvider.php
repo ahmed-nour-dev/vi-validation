@@ -20,10 +20,13 @@ final class FastValidationServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(FastValidatorFactory::class, function ($app) {
-            return new FastValidatorFactory(
-                config('fast-validation'),
-                $app->make(RuleRegistry::class)
-            );
+            $config = (array) config('fast-validation', []);
+            // Sign persisted cache files/native artifacts with the app key unless a dedicated
+            // key is configured, so files planted in the cache directories are never trusted.
+            $config['security']['signing_key'] = ($config['security']['signing_key'] ?? null)
+                ?: (config('app.key') ?: null);
+
+            return new FastValidatorFactory($config, $app->make(RuleRegistry::class));
         });
 
         $this->app->alias(FastValidatorFactory::class, 'fast.validator');

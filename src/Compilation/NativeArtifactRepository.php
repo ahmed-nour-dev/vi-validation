@@ -45,8 +45,17 @@ final class NativeArtifactRepository
 
     private string $directory;
 
-    public function __construct(string $directory, private readonly NativeCompiler $compiler = new NativeCompiler())
-    {
+    /**
+     * @param string|null $signingKey Optional secret (e.g. Laravel's APP_KEY). When set, every
+     *        artifact's header carries an HMAC-SHA256 of its body instead of a plain SHA-256,
+     *        so a file planted in the cache directory by anyone who doesn't know the secret is
+     *        rejected before it is ever required.
+     */
+    public function __construct(
+        string $directory,
+        private readonly NativeCompiler $compiler = new NativeCompiler(),
+        private readonly ?string $signingKey = null,
+    ) {
         $this->directory = rtrim($directory, '/\\');
     }
 
@@ -60,8 +69,16 @@ final class NativeArtifactRepository
         return $schema->fingerprint()->artifactKey;
     }
 
+    /**
+     * @throws \InvalidArgumentException if $key isn't a plain identifier: keys become file
+     *         names, so anything that could traverse or escape the directory is rejected.
+     */
     public function pathFor(string $key): string
     {
+        if (preg_match('/^[A-Za-z0-9_-]{1,128}$/D', $key) !== 1) {
+            throw new \InvalidArgumentException('Invalid native artifact key.');
+        }
+
         return $this->directory . '/' . $key . '.php';
     }
 
@@ -92,7 +109,8 @@ final class NativeArtifactRepository
 
         $this->ensureDirectory();
 
-        $lock = @fopen($this->directory . '/.lock', 'c');
+        $lockPath = $this->directory . '/.lock';
+        $lock = is_link($lockPath) ? false : @fopen($lockPath, 'c');
         if ($lock !== false) {
             flock($lock, LOCK_EX);
         }
@@ -113,7 +131,14 @@ final class NativeArtifactRepository
             $this->assertParses($code);
 
             $tmp = $this->directory . '/.' . $key . '.' . bin2hex(random_bytes(8)) . '.tmp';
-            if (@file_put_contents($tmp, $code) !== strlen($code)) {
+            // 'x' = exclusive create: fails instead of following a pre-planted file/symlink.
+            $handle = @fopen($tmp, 'x');
+            if ($handle === false) {
+                throw new NativeArtifactException("Failed to create temporary native artifact {$tmp}.");
+            }
+            $written = fwrite($handle, $code);
+            fclose($handle);
+            if ($written !== strlen($code)) {
                 @unlink($tmp);
                 throw new NativeArtifactException("Failed to write native artifact to {$tmp}.");
             }
@@ -153,8 +178,17 @@ final class NativeArtifactRepository
             return self::$loaded[$memoKey];
         }
 
+        if (preg_match('/^[A-Za-z0-9_-]{1,128}$/D', $key) !== 1) {
+            return null;
+        }
+
         $path = $this->pathFor($key);
         if (!is_file($path)) {
+            return null;
+        }
+
+        if (!$this->isTrustworthyLocation($path)) {
+            // Don't delete: we don't own a file we refuse to trust. Just never execute it.
             return null;
         }
 
@@ -231,8 +265,7 @@ final class NativeArtifactRepository
             'key' => $key,
             'compiler' => NativeCompiler::COMPILER_VERSION,
             'php' => PHP_VERSION_ID,
-            'sha256' => hash('sha256', $rest),
-        ]);
+        ] + $this->signatureFields($rest));
 
         return "<?php\n" . $header . "\n" . $rest;
     }
@@ -277,17 +310,63 @@ final class NativeArtifactRepository
 
     private function isValidArtifactFile(string $path, string $key): bool
     {
-        if (!is_file($path)) {
+        if (!is_file($path) || is_link($path)) {
             return false;
         }
 
         $header = $this->readHeader($path, $rest);
 
-        return $header !== null
-            && $rest !== null
-            && ($header['format'] ?? null) === self::ARTIFACT_FORMAT
-            && ($header['key'] ?? null) === $key
-            && hash_equals((string) ($header['sha256'] ?? ''), hash('sha256', $rest));
+        if ($header === null || $rest === null
+            || ($header['format'] ?? null) !== self::ARTIFACT_FORMAT
+            || ($header['key'] ?? null) !== $key
+        ) {
+            return false;
+        }
+
+        foreach ($this->signatureFields($rest) as $field => $expected) {
+            if (!is_string($header[$field] ?? null) || !hash_equals($expected, $header[$field])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function signatureFields(string $body): array
+    {
+        return $this->signingKey !== null
+            ? ['hmac' => hash_hmac('sha256', $body, $this->signingKey)]
+            : ['sha256' => hash('sha256', $body)];
+    }
+
+    /**
+     * Refuse to execute a file that anyone else on the machine could have put there: a
+     * symlink, a world-writable file, or a file in a world-writable directory without the
+     * sticky bit. (POSIX permission checks are skipped on Windows.)
+     */
+    private function isTrustworthyLocation(string $path): bool
+    {
+        if (is_link($path)) {
+            return false;
+        }
+
+        if (DIRECTORY_SEPARATOR === '\\') {
+            return true;
+        }
+
+        $filePerms = @fileperms($path);
+        $dirPerms = @fileperms($this->directory);
+        if ($filePerms === false || $dirPerms === false) {
+            return false;
+        }
+
+        $worldWritableFile = ($filePerms & 0002) !== 0;
+        $worldWritableDir = ($dirPerms & 0002) !== 0 && ($dirPerms & 01000) === 0;
+
+        return !$worldWritableFile && !$worldWritableDir;
     }
 
     private function verifyAndRequire(string $path, string $key): ?Closure

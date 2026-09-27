@@ -11,7 +11,14 @@ final class FileSchemaCache implements SchemaCacheInterface
     private string $cachePath;
     private int $defaultTtl;
 
-    public function __construct(string $cachePath, int $defaultTtl = 3600)
+    /**
+     * @param string|null $signingKey Optional secret (e.g. Laravel's APP_KEY). Cache files are
+     *        PHP-serialized, and unserialize() on attacker-controlled bytes can instantiate
+     *        arbitrary classes. With a signing key every file is prefixed with an HMAC of its
+     *        payload and anything that doesn't verify is discarded *before* unserialize().
+     *        Without one, the cache directory must be writable only by the application.
+     */
+    public function __construct(string $cachePath, int $defaultTtl = 3600, private readonly ?string $signingKey = null)
     {
         $this->cachePath = rtrim($cachePath, '/\\');
         $this->defaultTtl = $defaultTtl;
@@ -34,9 +41,15 @@ final class FileSchemaCache implements SchemaCacheInterface
             return null;
         }
 
-        $data = unserialize($content);
+        $payload = PayloadSigner::unwrap($content, $this->signingKey);
+        if ($payload === null) {
+            $this->forget($key);
+            return null;
+        }
 
-        if (!is_array($data) || !isset($data['schema'], $data['expires'])) {
+        $data = @unserialize($payload);
+
+        if (!is_array($data) || !isset($data['schema']) || !array_key_exists('expires', $data)) {
             $this->forget($key);
             return null;
         }
@@ -64,7 +77,7 @@ final class FileSchemaCache implements SchemaCacheInterface
             'expires' => $ttl > 0 ? time() + $ttl : null,
         ];
 
-        file_put_contents($path, serialize($data), LOCK_EX);
+        PayloadSigner::writeAtomically($path, PayloadSigner::wrap(serialize($data), $this->signingKey));
     }
 
     public function has(string $key): bool

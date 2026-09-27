@@ -45,6 +45,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security
+    |--------------------------------------------------------------------------
+    |
+    | Secret used to HMAC-sign file-cached schemas and generated native
+    | validators, so files planted in the cache directories by anyone without
+    | the secret are never unserialized or required. Defaults to APP_KEY when
+    | left null. See docs/native-compilation.md for the trust model.
+    |
+    */
+    'security' => [
+        'signing_key' => env('FAST_VALIDATION_SIGNING_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Performance Options
     |--------------------------------------------------------------------------
     |
