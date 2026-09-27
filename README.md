@@ -41,6 +41,7 @@ Stop trading performance for convenience. **vi/validation** delivers **17x to 34
 - [Quick Start](#-quick-start)
 - [Key Features & Documentation](#-key-features--documentation)
   - [Streaming & Large Datasets](#-streaming--large-datasets)
+  - [Error Collection Strategies for Large Imports](#-error-collection-strategies-for-large-imports)
   - [Chunked & Batch Validation](#-chunked--batch-validation)
   - [Working with Validation Results](#-working-with-validation-results)
   - [Custom Validation Rules (Closures)](#-custom-validation-rules-closures)
@@ -267,6 +268,53 @@ Memory and throughput from `php tests/benchmark_streaming.php`: a generator sour
 | 10,000 | native | 550,461 | 4.3 KB | 6.0 MB |
 | 100,000 | native | 534,114 | 4.3 KB | 59.5 MB |
 | 1,000,000 | native | 502,146 | 4.3 KB | — |
+
+### 🧮 Error Collection Strategies for Large Imports
+
+When you validate millions of rows, the error data you keep costs more than the validation itself. There are two independent controls.
+
+**1. How much detail per row: `ErrorMode`.** Validity never depends on the mode; only the detail kept changes.
+
+| Mode | Keeps | Use for |
+| :--- | :--- | :--- |
+| `ErrorMode::All` *(default)* | every failing rule (bounded by `max_errors`) | APIs / forms that show a full error bag |
+| `ErrorMode::FirstPerField` | the first failing rule per field (as if every field had `bail`) | imports reporting one problem per column |
+| `ErrorMode::FirstPerRow` | the first error of the row, then stops | "is this row valid, and one reason why" |
+| `ErrorMode::CountOnly` | no details, only per-field counts (`errorCount()`, `errorCountsByField()`, `failedFields()`) | statistics / dashboards over huge datasets |
+
+```php
+use Vi\Validation\Execution\ErrorMode;
+
+$validator->setErrorMode(ErrorMode::FirstPerField);        // SchemaValidator or FastValidator wrapper
+// Laravel: 'performance.error_mode' => 'first_per_field'  (FAST_VALIDATION_ERROR_MODE)
+```
+
+**2. How many failed rows to keep: `report()`.** It validates every row, counts everything and keeps only a bounded sample of failures (with their index/key). An optional callback is a streaming error sink that sees *every* failure:
+
+```php
+$report = $validator->report($rows, maxStoredFailures: 100, onFailure: function (ValidationFailure $f) use ($errorCsv) {
+    fputcsv($errorCsv, [$f->key, implode('; ', $f->result->allMessages())]);
+});
+
+$report->rowsProcessed;        // 1,000,000
+$report->failedRows;           // 48,213
+$report->errorCountsByField;   // ['email' => 40,112, 'qty' => 9,870]
+$report->failures;             // first 100 ValidationFailure objects
+$report->isTruncated();        // true
+```
+
+Both work identically on the engine and native paths. `fail_fast` and `max_errors` are now also applied on the native path.
+
+From `php tests/benchmark_error_modes.php 200000` (5 fields, 50% invalid rows, PHP 8.4 CLI; "peak added" is the peak memory on top of the baseline):
+
+| Strategy | rows/s | peak added |
+| :--- | ---: | ---: |
+| `All`, keep every failure (`iterator_to_array(failures())`) | 52,221 | 552 MB |
+| `FirstPerField`, keep every failure | 122,948 | 515 MB |
+| `All` + `report(100)` | 135,091 | 628 KB |
+| `FirstPerField` + `report(100)` | 157,047 | 543 KB |
+| `FirstPerRow` + `report(100)` | 240,937 | 235 KB |
+| `CountOnly` + `report(0)` | 151,642 | 4 KB |
 
 ### 📦 Chunked & Batch Validation
 
@@ -541,6 +589,7 @@ This creates `config/fast-validation.php` with the following options (each overr
 | `compilation.cache_path` | — | `storage/framework/validation/compiled` | Where native validators are stored/loaded. See the [schema lifecycle](docs/native-compilation.md#schema-lifecycle). |
 | `security.signing_key` | `FAST_VALIDATION_SIGNING_KEY` | `APP_KEY` | Secret used to HMAC-sign cached schemas and native artifacts; unverified files are never loaded. See [security model](docs/native-compilation.md#security-model--trust-boundaries). |
 | `performance.fail_fast` | `FAST_VALIDATION_FAIL_FAST` | `false` | Stop validating a field after its first error. |
+| `performance.error_mode` | `FAST_VALIDATION_ERROR_MODE` | `all` | Error detail kept per row: `all`, `first_per_field`, `first_per_row` or `count_only`. See [Error Collection Strategies](#-error-collection-strategies-for-large-imports). |
 | `performance.max_errors` | `FAST_VALIDATION_MAX_ERRORS` | `100` | Stop collecting errors after this many, to bound worst-case cost on malformed input. |
 | `performance.fast_path_rules` | `FAST_VALIDATION_FAST_PATH` | `true` | Enable optimized code paths for common rule combinations. |
 | `localization.locale` | `FAST_VALIDATION_LOCALE` | `en` | Default locale for error messages. |

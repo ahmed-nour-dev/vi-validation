@@ -72,6 +72,10 @@ return [
         
         // Maximum number of errors to collect before stopping
         'max_errors' => env('FAST_VALIDATION_MAX_ERRORS', 100),
+
+        // How much error detail to keep per row: 'all', 'first_per_field', 'first_per_row'
+        // or 'count_only' (see Vi\Validation\Execution\ErrorMode)
+        'error_mode' => env('FAST_VALIDATION_ERROR_MODE', 'all'),
         
         // Enable optimized fast-path rules for common validations
         'fast_path_rules' => env('FAST_VALIDATION_FAST_PATH', true),

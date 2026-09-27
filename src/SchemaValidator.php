@@ -110,7 +110,7 @@ final class SchemaValidator
     public function validate(array $data): ValidationResult
     {
         if ($this->cachedNativeValidator !== null) {
-            return $this->cachedNativeValidator->validate($data);
+            return $this->cachedNativeValidator->validate($data, $this->engine);
         }
 
         // Look for a native precompiled validator (highest speed) exactly once per instance:
@@ -119,7 +119,7 @@ final class SchemaValidator
         if (!$this->nativeResolved && $this->usesNative()) {
             /** @var \Vi\Validation\Execution\NativeValidator $native */
             $native = $this->cachedNativeValidator;
-            return $native->validate($data);
+            return $native->validate($data, $this->engine);
         }
 
         return $this->engine->validate($this->schema, $data);
@@ -255,6 +255,74 @@ final class SchemaValidator
 
             $index++;
         }
+    }
+
+    /**
+     * Validate every row and return aggregate statistics plus a bounded sample of failures.
+     *
+     * Built for ETL/imports over millions of rows: every row is validated and counted, but at
+     * most $maxStoredFailures failed rows are kept (in order, with index/key), so memory is
+     * bounded by that sample no matter how many rows fail. Per-field error counts cover all
+     * rows. Combine with setErrorMode() to also bound the detail kept per row (e.g.
+     * ErrorMode::FirstPerField, or ErrorMode::CountOnly for pure statistics).
+     *
+     * $onFailure, if given, is called for *every* failed row as it happens (index/key,
+     * result) - a streaming error sink, e.g. to write an error CSV - independently of how many
+     * are stored.
+     *
+     * @param iterable<array-key, array<string, mixed>> $rows
+     * @param int $maxStoredFailures How many failed rows to retain (0 = none, just count).
+     * @param callable(ValidationFailure): void|null $onFailure
+     */
+    public function report(
+        iterable $rows,
+        int $maxStoredFailures = 100,
+        ?callable $onFailure = null
+    ): \Vi\Validation\Execution\ValidationReport {
+        $index = 0;
+        $failedRows = 0;
+        $errorCount = 0;
+        $failures = [];
+        $countsByField = [];
+
+        foreach ($rows as $key => $row) {
+            $result = $this->validate($row);
+
+            if (!$result->isValid()) {
+                $failedRows++;
+
+                foreach ($result->errorCountsByField() as $field => $count) {
+                    $countsByField[$field] = ($countsByField[$field] ?? 0) + $count;
+                    $errorCount += $count;
+                }
+
+                if ($onFailure !== null || count($failures) < $maxStoredFailures) {
+                    $failure = new ValidationFailure($index, $key, $result);
+
+                    if (count($failures) < $maxStoredFailures) {
+                        $failures[] = $failure;
+                    }
+                    if ($onFailure !== null) {
+                        $onFailure($failure);
+                    }
+                }
+            }
+
+            $index++;
+        }
+
+        return new \Vi\Validation\Execution\ValidationReport($index, $failedRows, $errorCount, $failures, $countsByField, $maxStoredFailures);
+    }
+
+    /**
+     * Set how much error detail is collected per row (see ErrorMode). Applies to both the
+     * engine and the native path.
+     */
+    public function setErrorMode(\Vi\Validation\Execution\ErrorMode $mode): self
+    {
+        $this->engine->setErrorMode($mode);
+
+        return $this;
     }
 
     /**

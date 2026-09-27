@@ -16,13 +16,23 @@ final class ValidationResult
     /** @var list<string> */
     private array $excludedFields;
 
+    /** @var array<string, int>|null per-field counts when details weren't kept (ErrorMode::CountOnly) */
+    private ?array $errorCounts;
+
     /**
      * @param ErrorCollector|array<string, list<array{rule: string, params: array<string, mixed>, message: string|null}>> $errors
      * @param array<string, mixed> $data
      * @param list<string> $excludedFields
+     * @param array<string, int>|null $errorCounts Per-field error counts for a count-only result
+     *        (ErrorMode::CountOnly), in which case $errors is empty.
      */
-    public function __construct($errors, array $data = [], ?MessageResolver $messageResolver = null, array $excludedFields = [])
-    {
+    public function __construct(
+        $errors,
+        array $data = [],
+        ?MessageResolver $messageResolver = null,
+        array $excludedFields = [],
+        ?array $errorCounts = null
+    ) {
         if ($errors instanceof ErrorCollector) {
             $this->errors = $errors->all();
         } else {
@@ -31,6 +41,52 @@ final class ValidationResult
         $this->data = $data;
         $this->messageResolver = $messageResolver;
         $this->excludedFields = $excludedFields;
+        $this->errorCounts = $errorCounts;
+    }
+
+    /**
+     * Whether this result only carries error counts, not details (ErrorMode::CountOnly).
+     */
+    public function isCountOnly(): bool
+    {
+        return $this->errorCounts !== null;
+    }
+
+    /**
+     * Total number of errors collected for this row (in every error mode).
+     */
+    public function errorCount(): int
+    {
+        if ($this->errorCounts !== null) {
+            return array_sum($this->errorCounts);
+        }
+
+        $count = 0;
+        foreach ($this->errors as $fieldErrors) {
+            $count += count($fieldErrors);
+        }
+
+        return $count;
+    }
+
+    /**
+     * Number of errors per failed field (in every error mode).
+     *
+     * @return array<string, int>
+     */
+    public function errorCountsByField(): array
+    {
+        return $this->errorCounts ?? array_map('count', $this->errors);
+    }
+
+    /**
+     * Names of the fields that failed (in every error mode).
+     *
+     * @return list<string>
+     */
+    public function failedFields(): array
+    {
+        return array_map('strval', array_keys($this->errorCounts ?? $this->errors));
     }
 
     /**
@@ -109,7 +165,7 @@ final class ValidationResult
 
     public function isValid(): bool
     {
-        return $this->errors === [];
+        return $this->errors === [] && ($this->errorCounts === null || $this->errorCounts === []);
     }
 
     /**

@@ -86,6 +86,28 @@ final class FastValidatorWrapper implements LaravelValidatorContract
         return $this->validator->diagnostics();
     }
 
+    /**
+     * @see SchemaValidator::report()
+     *
+     * @param iterable<array-key, array<string, mixed>>|null $rows Rows to validate, or null to use wrapper's data
+     * @param callable(\Vi\Validation\Execution\ValidationFailure): void|null $onFailure
+     */
+    public function report(?iterable $rows = null, int $maxStoredFailures = 100, ?callable $onFailure = null): \Vi\Validation\Execution\ValidationReport
+    {
+        return $this->validator->report($rows ?? $this->data, $maxStoredFailures, $onFailure);
+    }
+
+    /**
+     * @see SchemaValidator::setErrorMode()
+     */
+    public function setErrorMode(\Vi\Validation\Execution\ErrorMode $mode): self
+    {
+        $this->validator->setErrorMode($mode);
+        $this->result = null;
+
+        return $this;
+    }
+
     public function fails(): bool
     {
         return !$this->passes();
